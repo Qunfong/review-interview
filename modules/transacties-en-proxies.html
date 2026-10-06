@@ -89,8 +89,26 @@ details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
 details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 details.answer > div{padding:0 16px 14px}
 details.answer > div p{margin:10px 0 0}
-.q{margin-top:22px}
-.q > p{margin:0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
 footer{margin-top:56px;color:var(--muted);font-size:14px}
 </style>
 </head>
@@ -288,26 +306,122 @@ footer{margin-top:56px;color:var(--muted);font-size:14px}
 <!-- 7. Controlevragen -->
 <section id="vragen">
   <h2>Controlevragen</h2>
-  <div class="q">
-    <p><b>1.</b> Een collega maakt <code>authorize</code> <code>public final</code>, "omdat niemand hem mag overschrijven". De methode houdt <code>@Transactional</code> en gebruikt het veld <code>cards</code>. Wat gebeurt er bij de eerste request? <span class="progress">→ doel 1</span></p>
-    <details class="answer"><summary>Antwoord</summary><div><p>CGLIB kan de methode niet overschrijven, dus de aanroep draait op de proxy-instantie zelf. Die is zonder constructor gemaakt; <code>cards</code> is <code>null</code> en je krijgt een <code>NullPointerException</code>. Zou de methode geen velden gebruiken, dan liep hij stil zonder transactie. Spring 7 logt bij het opstarten een <code>WARN</code> dat de final methode niet geproxied kan worden: zoek daar ook naar in de logs van de PR-build.</p></div></details>
-  </div>
-  <div class="q">
-    <p><b>2.</b> Twee varianten van dezelfde code: <code>try { x(); } catch (IllegalStateException e) { log… }</code> binnen een <code>@Transactional</code>-methode. In variant A is <code>x()</code> een <code>@Transactional</code>-methode in <em>dezelfde</em> klasse, in variant B in een <em>andere</em> bean. <code>x()</code> gooit. Wat commit er? <span class="progress">→ doel 2</span></p>
-    <details class="answer"><summary>Antwoord</summary><div><p>A commit gewoon: de aanroep gaat via <code>this</code>, de interceptor ziet de exception nooit en markeert niets. B gooit bij de commit <code>UnexpectedRollbackException</code> en rolt alles terug: de interceptor van de andere bean heeft de gedeelde transactie al rollback-only gemaakt voordat jij de exception ving. Ironisch: de "kapotte" variant A gedraagt zich hier zoals de auteur bedoelde. Refactor je A naar een aparte bean, dan verandert het gedrag.</p></div></details>
-  </div>
-  <div class="q">
-    <p><b>3.</b> Fix B uit het voorbeeld gaat live. De Hikari-pool heeft 10 connecties (de Boot-standaard). Tijdens een card-testing-aanval komen er 50 weigeringen per seconde binnen. Wat zie je, en welke fix had dit voorkomen? <span class="progress">→ doel 3</span></p>
-    <details class="answer"><summary>Antwoord</summary><div><p>Elke thread houdt één connectie vast voor tx1 en vraagt er een tweede voor tx2. Zijn alle 10 connecties als eerste connectie uitgegeven, dan wacht iedereen op een tweede die nooit vrijkomt. Na de <code>connectionTimeout</code> (standaard 30 s) volgen <code>SQLTransientConnectionException</code>s, ook voor ongerelateerde requests. Je fraudelog faalt dus precies tijdens de aanval. Fix A (weigering als uitkomst, één transactie) heeft dit probleem niet; anders moet de pool groter zijn dan het aantal gelijktijdige threads dat <code>REQUIRES_NEW</code> kan raken.</p></div></details>
-  </div>
-  <div class="q">
-    <p><b>4.</b> Een PR zet <code>@Transactional(readOnly = true)</code> op <code>ReportService</code> met de toelichting "zo kan deze service nooit per ongeluk schrijven". Klopt dat? <span class="progress">→ doel 2</span></p>
-    <details class="answer"><summary>Antwoord</summary><div><p>Nee. <code>readOnly</code> is een hint aan de transactiemanager. Met JPA zet Spring de flush-mode van de Hibernate-sessie op <code>MANUAL</code>, de sessie op read-only en de JDBC-connectie op <code>setReadOnly(true)</code>, dus gewijzigde entities worden niet geflusht. Een expliciete <code>INSERT</code> of <code>UPDATE</code> gaat naar de database, en of die daar geweigerd wordt hangt af van driver en database. In onze test met <code>DataSourceTransactionManager</code> en H2 ging een <code>INSERT</code> gewoon door. Prima als performance-hint, geen beveiliging. Bovendien geldt het alleen als de aanroep via de proxy loopt.</p></div></details>
-  </div>
-  <div class="q">
-    <p><b>5.</b> Je ziet <code>this.updateStatus(order)</code> vanuit een <code>@Transactional</code>-methode; <code>updateStatus</code> heeft <code>@Transactional(timeout = 5)</code>. De auteur zegt: "de timeout beschermt ons tegen een lock die blijft hangen." Welke zwaarte geef je, en wat schrijf je? <span class="progress">→ doel 4</span></p>
-    <details class="answer"><summary>Antwoord</summary><div><p><span class="sev major">major</span>: de timeout wordt via <code>this</code> nooit toegepast, dus de bescherming waar de auteur op rekent bestaat niet. Er gaat nu geen data mis, maar een hangende lock houdt de connectie vast zonder grens. Comment: <i>issue: <code>updateStatus</code> wordt via <code>this</code> aangeroepen, dus <code>timeout = 5</code> wordt genegeerd (de proxy wordt overgeslagen). Als de timeout belangrijk is, zet hem op de buitenste methode of verplaats <code>updateStatus</code> naar een eigen bean.</i> Waren de attributen gelijk geweest, dan was het een nit.</p></div></details>
-  </div>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · herkennen</span></div>
+      <p class="situ">Een collega maakt <code>authorize</code> <code>final</code>, "omdat niemand hem mag overschrijven":</p>
+<pre class="snip">@Transactional
+public final Authorization authorize(AuthorizeCommand cmd) {
+    var card = cards.findByToken(cmd.cardToken())
+            .orElseThrow(...);
+    ...
+}</pre>
+      <p class="ask">Wat gebeurt er bij de eerste request?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Een <code>NullPointerException</code> op <code>cards</code>, en er is geen transactie.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>CGLIB kan een <code>final</code> methode niet overschrijven, dus de aanroep loopt niet door de interceptor maar draait direct op de proxy-instantie.</li>
+          <li>Die proxy-instantie is zonder constructor aangemaakt: al haar velden, ook <code>cards</code>, zijn <code>null</code>.</li>
+          <li>Gebruikt de methode geen velden, dan gaat het stiller mis: hij draait gewoon, alleen zonder transactie.</li>
+        </ul>
+        <p class="a-lbl">Waar je het ziet</p>
+        <ul><li>Spring logt bij het opstarten een <code>WARN</code> dat de final methode niet geproxied kan worden. Zoek daarnaar in de log van de PR-build.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Twee varianten van dezelfde <code>@Transactional</code>-methode. In beide gooit <code>x()</code> een <code>IllegalStateException</code>, en <code>x()</code> heeft zelf ook <code>@Transactional</code>.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · x() in dezelfde klasse</p>
+<pre class="snip">try {
+    x();            // this.x()
+} catch (IllegalStateException e) {
+    log.warn("x faalde", e);
+}</pre></div>
+        <div><p class="snip-label">B · x() in een andere bean</p>
+<pre class="snip">try {
+    other.x();      // via proxy
+} catch (IllegalStateException e) {
+    log.warn("x faalde", e);
+}</pre></div>
+      </div>
+      <p class="ask">Wat wordt er in A en in B gecommit?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A commit gewoon. B gooit bij de commit een <code>UnexpectedRollbackException</code> en rolt alles terug.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><b>A:</b> de aanroep gaat via <code>this</code>, dus de interceptor ziet de exception nooit. Er wordt niets gemarkeerd, en jouw <code>catch</code> handelt hem af.</li>
+          <li><b>B:</b> de interceptor van de andere bean ziet de exception en markeert de <em>gedeelde</em> transactie als rollback-only, nog vóórdat jouw <code>catch</code> hem vangt. De buitenste methode probeert te committen en krijgt de exception.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>De "kapotte" variant A doet hier toevallig wat de auteur bedoelde. Refactor je A naar een aparte bean, dan verandert het gedrag ongemerkt.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · kiezen en verdedigen</span></div>
+      <p class="situ">Fix B uit het voorbeeld (een aparte <code>DeclineLog</code>-bean met <code>REQUIRES_NEW</code>) gaat live. De connection pool heeft 10 connecties, de standaard van Spring Boot. Tijdens een card-testing-aanval komen er 50 weigeringen per seconde binnen.</p>
+      <p class="ask">Wat zie je in productie, en welke fix had dit voorkomen?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">De pool loopt vast: na 30 seconden falen requests met <code>SQLTransientConnectionException</code>, ook ongerelateerde. Fix A had dit voorkomen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Elke weigering houdt één connectie vast voor tx1 en vraagt er een tweede voor tx2.</li>
+          <li>Zodra alle 10 connecties als <em>eerste</em> connectie zijn uitgegeven, wacht iedereen op een tweede die nooit vrijkomt (pool-locking).</li>
+          <li>Na de <code>connectionTimeout</code> van HikariCP (standaard 30 s) volgen er exceptions. Je fraudelog faalt dus precies tijdens de aanval.</li>
+        </ul>
+        <p class="a-lbl">De betere keuze</p>
+        <ul><li>Fix A, de weigering als uitkomst in één transactie, heeft maar één connectie nodig. Blijf je bij B, dan moet de pool groter zijn dan het aantal threads dat tegelijk <code>REQUIRES_NEW</code> kan raken.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Een PR zet <code>@Transactional(readOnly = true)</code> op <code>ReportService</code>, met als toelichting: "zo kan deze service nooit per ongeluk schrijven."</p>
+      <p class="ask">Klopt die toelichting?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee. <code>readOnly</code> is een hint voor performance, geen beveiliging.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Met JPA zet Spring de Hibernate-sessie op flush-mode <code>MANUAL</code> en read-only. Gewijzigde entities worden dus niet weggeschreven.</li>
+          <li>Een expliciete <code>INSERT</code> of <code>UPDATE</code> gaat wél naar de database. Of die daar geweigerd wordt, hangt af van driver en database. In onze test met H2 ging een <code>INSERT</code> gewoon door.</li>
+          <li>En net als elk transactie-attribuut werkt het alleen als de aanroep via de proxy loopt.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>question:</b> <code>readOnly</code> is een goede performance-hint, maar houdt een schrijfactie niet tegen. Is de bedoeling echt dat deze service nooit schrijft? Dan is een read-only databasegebruiker of een aparte read-only datasource de echte garantie.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">De auteur schrijft erbij: "de timeout beschermt ons tegen een lock die blijft hangen."</p>
+<pre class="snip">@Transactional
+public void ship(Order order) {
+    ...
+    this.updateStatus(order);
+}
+
+@Transactional(timeout = 5)
+public void updateStatus(Order order) { ... }</pre>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je in de review?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev major">major</span>: de bescherming waar de auteur op rekent, bestaat niet.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>Via <code>this</code> wordt de proxy overgeslagen, dus <code>timeout = 5</code> wordt nooit toegepast.</li>
+          <li>Er gaat nu geen data mis, dus geen blocker. Maar een hangende lock houdt de connectie zonder grens vast, en de auteur denkt dat dat is afgedekt.</li>
+          <li>Hadden beide methoden dezelfde attributen gehad, dan was het hooguit een <span class="sev nit">nit</span>.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>updateStatus</code> wordt via <code>this</code> aangeroepen, dus de Spring-proxy wordt overgeslagen en <code>timeout = 5</code> wordt genegeerd. Als de timeout belangrijk is: zet hem op <code>ship</code>, of verplaats <code>updateStatus</code> naar een eigen bean.</p>
+      </div></details>
+    </li>
+
+  </ol>
 </section>
 
 <section id="verder">
