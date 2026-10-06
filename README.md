@@ -2,21 +2,13 @@
 
 Een 8-weeks leer- en toetsplan om code te reviewen op het niveau van een senior Java-developer.
 
-## Publiceren op GitHub Pages
+Live: https://qunfong.github.io/review-interview/
 
-1. Maak een nieuwe repository op GitHub, bijvoorbeeld `java-review-leerplan`.
-2. Upload `index.html`, `.nojekyll` en deze `README.md` naar de root van de `main`-branch.
-3. Ga naar **Settings → Pages**.
-4. Kies bij **Source** voor **Deploy from a branch**, branch `main`, map `/ (root)`, en klik **Save**.
-5. Na ongeveer een minuut staat de site op `https://<gebruikersnaam>.github.io/java-review-leerplan/`.
+## Publicatie
 
-Via de command line:
+De site draait op GitHub Pages vanuit de root van de `main`-branch (Settings → Pages → Deploy from a branch, `main`, `/ (root)`).
+Elke push naar `main` werkt de site binnen ongeveer een minuut bij.
 
-```bash
-git init
-git add index.html .nojekyll README.md
-git commit -m "Leerplan Senior Java Reviewer"
-git branch -M main
-git remote add origin https://github.com/<gebruikersnaam>/java-review-leerplan.git
-git push -u origin main
-```
+## Lokaal bekijken
+
+Open `index.html` in een browser. Er is geen build-stap nodig.
