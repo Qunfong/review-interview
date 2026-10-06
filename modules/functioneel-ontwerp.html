@@ -298,14 +298,14 @@ static final PaymentSnapshot P = new PaymentSnapshot(ID, eur("1500.00"), CAPTURE
   <div class="tbl-wrap"><table class="tbl">
     <thead><tr><th>Vorm</th><th>Onmogelijke toestanden?</th><th>Compiler helpt?</th><th>Wanneer</th></tr></thead>
     <tbody>
-      <tr><td><code>boolean</code> + exception voor de rest</td><td>Nee, maar verwachte uitkomsten worden exceptions</td><td>Nee</td><td>Twee uitkomsten zonder data. Exceptions voor verwachte afwijzingen: zie module 11 (exceptions), parallel in ontwikkeling</td></tr>
+      <tr><td><code>boolean</code> + exception voor de rest</td><td>Nee, maar verwachte uitkomsten worden exceptions</td><td>Nee</td><td>Twee uitkomsten zonder data. Exceptions voor verwachte afwijzingen: zie <a href="exceptions-en-foutafhandeling.html">module 11</a> (exceptions), parallel in ontwikkeling</td></tr>
       <tr><td>Mutable resultaatobject met vlaggen (het voorbeeld)</td><td>Ja: <code>approved</code> én <code>review</code></td><td>Nee</td><td>Nooit voor nieuwe code</td></tr>
       <tr><td><code>enum Status</code> + nullable velden</td><td>Ja: <code>REJECTED</code> met een <code>pspRef</code></td><td>Alleen in een switch-<em>expressie</em></td><td>Als geen enkele uitkomst eigen data heeft</td></tr>
       <tr><td>Generiek <code>Result&lt;T&gt;</code> met <code>isError()</code>/<code>get()</code></td><td>Minder, maar de fout is vaak een <code>String</code></td><td>Nee: <code>get()</code> op een fout faalt pas tijdens runtime</td><td>Zelden; het is <code>Optional</code> met een reden, uitgepakt met <code>if</code> (zie <a href="optional-en-afwezigheid.html">F3, Afwezigheid expliciet maken</a>)</td></tr>
       <tr><td>Sealed interface + records</td><td>Nee</td><td>Ja, mits zonder <code>default</code></td><td>Drie of meer uitkomsten, of uitkomsten met eigen data</td></tr>
     </tbody>
   </table></div>
-  <p>Of je verwachte afwijzingen als waarde of als exception modelleert, en hoe dat op een API-grens naar <code>ProblemDetail</code> gaat, behandelt module 11. De afweging tussen een <code>switch</code> over een sealed type en polymorfe methoden op de varianten zelf (welke kant goedkoop wordt: nieuwe varianten of nieuwe operaties) is <a href="switch-vs-polymorfisme.html">module 6b</a>. Hier gaat het om iets eerders: dat de uitkomst een waarde is met precies de toestanden die kunnen bestaan.</p>
+  <p>Of je verwachte afwijzingen als waarde of als exception modelleert, en hoe dat op een API-grens naar <code>ProblemDetail</code> gaat, behandelt <a href="exceptions-en-foutafhandeling.html">module 11</a>. De afweging tussen een <code>switch</code> over een sealed type en polymorfe methoden op de varianten zelf (welke kant goedkoop wordt: nieuwe varianten of nieuwe operaties) is <a href="switch-vs-polymorfisme.html">module 6b</a>. Hier gaat het om iets eerders: dat de uitkomst een waarde is met precies de toestanden die kunnen bestaan.</p>
 </section>
 
 <!-- 4. Afweging -->
@@ -487,7 +487,7 @@ var score = riskClient.score(m.id());</pre></div>
         <p class="a-lbl">Waarom deze zwaarte</p>
         <ul>
           <li>Er is geen aantoonbare bug, maar de schil is juist de plek die imperatief en recht-toe-recht-aan moet zijn: welke I/O in welke volgorde gebeurt, staat nu verspreid over geneste lambda's.</li>
-          <li><code>Result.of(() -&gt; …)</code> vangt exceptions op en maakt er waarden van. Een <code>OptimisticLockingFailureException</code> uit de executor wordt <code>RefundResponse.failed</code> in plaats van een retry; dat verandert foutgedrag (module 11).</li>
+          <li><code>Result.of(() -&gt; …)</code> vangt exceptions op en maakt er waarden van. Een <code>OptimisticLockingFailureException</code> uit de executor wordt <code>RefundResponse.failed</code> in plaats van een retry; dat verandert foutgedrag (<a href="exceptions-en-foutafhandeling.html">module 11</a>).</li>
           <li>Stacktraces bestaan uit <code>lambda$requestRefund$…</code>-frames; bij een incident kost dat tijd.</li>
         </ul>
         <p class="a-lbl">In de review</p>

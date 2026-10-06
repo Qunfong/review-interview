@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Resilience: timeouts, retries en circuit breakers · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module herken je een remote call zonder werkende timeout, reken je retry-vermenigvuldiging en timeout-budgetten uit, beoordeel je retries op idempotentie, en kies je tussen retry, circuit breaker, bulkhead en fallback met Spring Framework 7 en Resilience4j.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="resilience">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 9 · D7 Microservices</p>
+  <h1>Resilience: timeouts, retries en circuit breakers</h1>
+  <p class="lede">De PSP valt niet om, hij wordt alleen traag. Toch ligt een kwartier later de hele betaalservice plat, ook voor refunds en health checks. Drie retry-lagen sturen de FX-provider 27 calls per klik. En de "veilige" retry op een time-out boekt dezelfde betaling twee keer. Elke regel die dit veroorzaakt, zag er in de PR redelijk uit.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 · Spring Boot 4.1 (Framework 7) · Resilience4j 2</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Een remote call zonder <em>werkende</em> timeout in een diff of in configuratie <b>herkennen</b>: geen timeout gezet, de Boot 3-propertynaam, of een read-timeout die geen deadline is. Je kunt ook met Little's law <b>uitleggen</b> hoe één trage afhankelijkheid alle threads of connecties vastzet.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span>Een retry <b>beoordelen</b> op vier punten: is de operatie idempotent (en blijft de idempotency key over pogingen gelijk), wordt alleen een tijdelijke fout herhaald, is er backoff met jitter, en hoeveel lagen herhalen er al? Je <b>rekent</b> de vermenigvuldiging en de slechtste duur uit.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span><b>Kiezen en verdedigen</b> tussen timeout, retry, circuit breaker, bulkhead (<code>@ConcurrencyLimit</code>) en fallback. Je plaatst wat Spring Framework 7 zelf kan naast Resilience4j, en controleert dat het timeout-budget binnen dat van de aanroeper past.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>Een fallback <b>herkennen</b> die een fout in een geslaagd resultaat verandert. Je <b>schat de zwaarte in</b> en schrijft een comment met het faalscenario, de rekensom en een voorstel.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Je injecteert de <code>RestClient.Builder</code> van Spring Boot 4 en zet zelf niets. Na hoeveel seconden geeft een call naar een hangende PSP op?</li>
+      <li>Drie lagen hebben elk <code>@Retryable(maxRetries = 2)</code>. Hoeveel calls komen er bij de onderste afhankelijkheid aan als die blijft falen?</li>
+      <li>Een <code>POST /payments</code> naar de PSP loopt tegen de read-timeout aan. Is de betaling dan mislukt?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <h3>Een trage afhankelijkheid is erger dan een dode</h3>
+  <p>Een afhankelijkheid die weigert (connection refused, direct een <code>503</code>) kost je een paar milliseconden per request. Een afhankelijkheid die <em>traag</em> wordt, kost je een thread, een socket en misschien een databaseconnectie, en wel zo lang als hij traag is. Little's law zegt hoeveel requests er tegelijk in je service zitten: <b>aantal in behandeling = aankomstsnelheid × verblijftijd</b>. Bij 200 checkouts per seconde en een PSP die in 0,4 s antwoordt, zijn dat er 80. Antwoordt de PSP in 30 s, dan zouden het er 6.000 zijn. Tomcat heeft standaard 200 threads (<code>server.tomcat.threads.max</code>), dus die zijn na één seconde allemaal bezet, en vanaf dan wacht <em>elk</em> request in de wachtrij: refunds, het dashboard, <code>/actuator/health</code>. De load balancer ziet een falende health check en haalt de pod eruit. De service is down, terwijl alleen de PSP traag was.</p>
+  <p>Met virtual threads (<code>spring.threads.virtual.enabled=true</code>) is er geen limiet van 200, maar het probleem verdwijnt niet. Het verschuift naar de eerste grens die er wel is: de HikariCP-pool (standaard 10) als de call binnen een transactie staat (<a href="transacties-en-proxies.html">module 1</a>), het geheugen voor duizenden wachtende requests, of de PSP zelf, die je nu met duizenden gelijktijdige calls bestookt. Hetzelfde gebeurt kleiner bij een <code>parallelStream()</code> die per element de FX-provider belt (<a href="streams-lezen-en-schrijven.html">F1</a>): zonder timeout staat de gedeelde common pool van de hele JVM stil. En een call per orderregel in een lus is de N+1 van HTTP (<a href="jpa-n-plus-1.html">module 2</a>): N × timeout × pogingen. Een timeout is daarom geen detail van de HTTP-client. Hij bepaalt hoe lang een storing bij een ander jouw capaciteit mag opeten.</p>
+
+  <h3>Wat Spring Boot 4 standaard instelt: niets</h3>
+  <p>Met alleen <code>spring-boot-starter-restclient</code> op het classpath kiest Boot 4.1 de JDK-<code>HttpClient</code>. De volgorde is Apache HttpClient, Jetty, Reactor Netty, JDK, en als laatste <code>HttpURLConnection</code>. De globale instellingen staan in <code>spring.http.clients.connect-timeout</code> en <code>spring.http.clients.read-timeout</code>, en zonder configuratie zijn ze leeg. Nagespeeld met Boot 4.1.1 en JDK 25:</p>
+  <ul>
+    <li>De <code>HttpClientSettings</code>-bean heeft <code>connectTimeout=null, readTimeout=null</code>. Een call naar een endpoint dat 8 s slaapt, slaagt na 8.175 ms. Bij 80 s had hij 80 s gewacht.</li>
+    <li>Een connect naar een adres dat niet antwoordt, gaf zonder connect-timeout pas na <b>42 s</b> op (Windows 11, het OS bepaalt hoe vaak een SYN opnieuw wordt verstuurd). Met <code>connectTimeout(2s)</code> was dat 2.006 ms.</li>
+    <li>De oude Boot 3-naam <code>spring.http.client.read-timeout</code> (zonder <i>s</i>) staat in de metadata als deprecated, maar wordt in 4.1.1 <b>niet</b> toegepast. Met <code>spring.http.client.read-timeout=1s</code> duurde dezelfde call 8.019 ms. Met <code>spring.http.clients.read-timeout=1s</code> faalde hij na 1.002 ms met een <code>ResourceAccessException</code>.</li>
+  </ul>
+  <p><b>Connect-timeout</b> begrenst het opzetten van de TCP-verbinding: hoe lang wacht je op een host die er niet is? Kies hem kort (honderden milliseconden tot 1 s in hetzelfde datacenter). <b>Read-timeout</b> begrenst het wachten op het antwoord, maar wat dat precies betekent, verschilt per client. Bij <code>HttpURLConnection</code> (Simple) en bij een socket-timeout in Apache HttpClient is het een <em>inactiviteits</em>timeout per read. Een antwoord dat elke 500 ms één byte stuurt, kwam met een read-timeout van 1 s gewoon binnen, na 5.222 ms. Spring's <code>JdkClientHttpRequestFactory</code> gebruikt de read-timeout als deadline voor het hele antwoord, en daar faalde dezelfde call na 1.008 ms. Een read-timeout is dus niet vanzelf een bovengrens voor de duur van een call. Wil je een echte deadline, controleer dan wat jouw client ermee doet.</p>
+
+  <h3>Retries: één laag is beleid, drie lagen zijn een vermenigvuldiging</h3>
+  <p>Een retry helpt bij een <em>tijdelijke</em> fout die bij de volgende poging waarschijnlijk weg is: een verbroken connectie, een <code>503</code> tijdens een deploy. Bij een overbelaste afhankelijkheid maakt een retry het erger. Elke client die faalt, komt terug met extra load, precies op het moment dat de afhankelijkheid probeert te herstellen. Dat is een <b>retry storm</b>. Drie mechanismen maken het groter:</p>
+  <ul>
+    <li><b>Lagen vermenigvuldigen.</b> Herhaalt elke laag <i>r</i> keer, dan krijgt de bodem <i>(1 + r)<sup>n</sup></i> calls per oorspronkelijke klik. Nagespeeld met drie geneste beans met elk <code>@Retryable(maxRetries = 2)</code>: <b>27</b> calls op een FX-endpoint dat <code>503</code> gaf. Het SRE-boek van Google rekent hetzelfde voor met 4 pogingen op 3 lagen: 64.</li>
+    <li><b>Geen jitter.</b> Met een vaste delay komen alle clients die tegelijk faalden ook tegelijk terug, in golven. Exponentiële backoff spreidt de pogingen in de tijd, jitter spreidt ze tussen clients.</li>
+    <li><b>Herhalen wat niet tijdelijk is.</b> Een <code>402</code>-weigering of een <code>400</code> wordt bij de volgende poging niet beter. Je stuurt de issuer dan vier keer dezelfde geweigerde autorisatie, en dat lijkt op card testing.</li>
+  </ul>
+  <p>En dan het belangrijkste: <b>een time-out is geen mislukking, maar onwetendheid.</b> Als de read-timeout afgaat op een <code>POST /payments</code>, weet je niet of de PSP de betaling heeft verwerkt. Herhaal je hem zonder idempotency key, dan kan de klant twee keer betalen. Nagespeeld met een PSP die de betaling boekt en na 1,5 s antwoordt, een read-timeout van 1 s en <code>maxRetries = 2</code>: <b>3 requests, 3 boekingen</b>. Met een idempotency key die over alle pogingen gelijk blijft: 1 boeking. Dit is hetzelfde probleem als de at-least-once-levering uit <a href="dual-write-en-outbox.html">module 3</a>. Een retry rond een publish of een PSP-call levert dubbelen op, en alleen de ontvanger kan die eruit halen.</p>
+
+  <figure>
+    <svg viewBox="0 0 400 450" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee panelen. A: tijdlijn van 0 tot 63 seconden. De gateway geeft na 10 seconden een 504. Daaronder vier PSP-pogingen van 15 seconden met 1 seconde ertussen, samen 63 seconden; vrijwel alles daarvan valt na de deadline van de aanroeper. Na de fix: twee pogingen van maximaal 4 seconden met 0,3 seconde ertussen, samen hooguit 8,3 seconden, binnen de deadline. B: retries op drie lagen. Eén klik wordt 3 aanroepen van CheckoutService, 9 van PricingService en 27 calls naar de FX-provider.</title>
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:currentColor">A · Timeout-budget: wie wacht er nog?</text>
+      <line x1="120" y1="36" x2="120" y2="150" style="stroke:var(--accent);stroke-dasharray:4 3"/>
+      <text x="124" y="34" font-size="10" style="fill:var(--accent)">deadline aanroeper (10 s)</text>
+
+      <text x="0" y="56" font-size="11" style="fill:currentColor">gateway</text>
+      <rect x="70" y="44" width="50" height="16" rx="3" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+      <text x="126" y="56" font-size="11" style="fill:var(--muted)">504 na 10 s</text>
+
+      <text x="0" y="88" font-size="11" style="fill:currentColor">PSP-call</text>
+      <rect x="70" y="76" width="75" height="16" rx="3" style="fill:var(--del);stroke:var(--blocker)"/>
+      <text x="107" y="88" font-size="10" text-anchor="middle" class="mono" style="fill:currentColor">15 s</text>
+      <rect x="150" y="76" width="75" height="16" rx="3" style="fill:var(--del);stroke:var(--blocker)"/>
+      <text x="187" y="88" font-size="10" text-anchor="middle" class="mono" style="fill:currentColor">15 s</text>
+      <rect x="230" y="76" width="75" height="16" rx="3" style="fill:var(--del);stroke:var(--blocker)"/>
+      <text x="267" y="88" font-size="10" text-anchor="middle" class="mono" style="fill:currentColor">15 s</text>
+      <rect x="310" y="76" width="75" height="16" rx="3" style="fill:var(--del);stroke:var(--blocker)"/>
+      <text x="347" y="88" font-size="10" text-anchor="middle" class="mono" style="fill:currentColor">15 s</text>
+      <text x="70" y="110" font-size="11" style="fill:var(--blocker)">read 15 s · @Retryable: 4 × 15 s + 3 × 1 s = 63 s</text>
+
+      <text x="0" y="136" font-size="11" style="fill:currentColor">na fix</text>
+      <rect x="70" y="124" width="20" height="16" rx="3" style="fill:var(--add);stroke:var(--ok)"/>
+      <rect x="92" y="124" width="20" height="16" rx="3" style="fill:var(--add);stroke:var(--ok)"/>
+      <text x="128" y="136" font-size="11" style="fill:var(--ok)">2 × (1 + 3 s) + 0,3 s ≤ 8,3 s</text>
+
+      <line x1="70" y1="152" x2="385" y2="152" style="stroke:var(--muted)"/>
+      <text x="70" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">0 s</text>
+      <text x="120" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">10</text>
+      <text x="170" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">20</text>
+      <text x="220" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">30</text>
+      <text x="270" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">40</text>
+      <text x="320" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">50</text>
+      <text x="370" y="166" font-size="10" text-anchor="middle" style="fill:var(--muted)">60</text>
+      <text x="200" y="190" font-size="12" text-anchor="middle" style="fill:var(--muted)">Na 10 s wacht niemand meer op het antwoord. De service</text>
+      <text x="200" y="206" font-size="12" text-anchor="middle" style="fill:var(--muted)">houdt nog 53 s een thread en socket vast, en de merchant</text>
+      <text x="200" y="222" font-size="12" text-anchor="middle" style="fill:var(--muted)">heeft na de 504 al een tweede poging gestart.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="262" font-size="15" font-weight="600" style="fill:currentColor">B · Retries op drie lagen vermenigvuldigen</text>
+      <text x="0" y="288" font-size="12" style="fill:currentColor">klik van de klant</text>
+      <rect x="0" y="294" width="12" height="12" rx="2" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+      <text x="0" y="324" font-size="12" class="mono" style="fill:currentColor">CheckoutService · maxRetries = 2</text>
+      <g style="fill:var(--accent-soft);stroke:var(--accent)">
+        <rect x="0" y="330" width="12" height="12" rx="2"/><rect x="14" y="330" width="12" height="12" rx="2"/><rect x="28" y="330" width="12" height="12" rx="2"/>
+      </g>
+      <text x="0" y="360" font-size="12" class="mono" style="fill:currentColor">PricingService · maxRetries = 2</text>
+      <g style="fill:var(--accent-soft);stroke:var(--accent)">
+        <rect x="0" y="366" width="12" height="12" rx="2"/><rect x="14" y="366" width="12" height="12" rx="2"/><rect x="28" y="366" width="12" height="12" rx="2"/>
+        <rect x="42" y="366" width="12" height="12" rx="2"/><rect x="56" y="366" width="12" height="12" rx="2"/><rect x="70" y="366" width="12" height="12" rx="2"/>
+        <rect x="84" y="366" width="12" height="12" rx="2"/><rect x="98" y="366" width="12" height="12" rx="2"/><rect x="112" y="366" width="12" height="12" rx="2"/>
+      </g>
+      <text x="0" y="396" font-size="12" class="mono" style="fill:currentColor">FxGateway · maxRetries = 2 → FX-provider</text>
+      <g style="fill:var(--del);stroke:var(--blocker)">
+        <rect x="0" y="402" width="12" height="12" rx="2"/><rect x="14" y="402" width="12" height="12" rx="2"/><rect x="28" y="402" width="12" height="12" rx="2"/>
+        <rect x="42" y="402" width="12" height="12" rx="2"/><rect x="56" y="402" width="12" height="12" rx="2"/><rect x="70" y="402" width="12" height="12" rx="2"/>
+        <rect x="84" y="402" width="12" height="12" rx="2"/><rect x="98" y="402" width="12" height="12" rx="2"/><rect x="112" y="402" width="12" height="12" rx="2"/>
+        <rect x="126" y="402" width="12" height="12" rx="2"/><rect x="140" y="402" width="12" height="12" rx="2"/><rect x="154" y="402" width="12" height="12" rx="2"/>
+        <rect x="168" y="402" width="12" height="12" rx="2"/><rect x="182" y="402" width="12" height="12" rx="2"/><rect x="196" y="402" width="12" height="12" rx="2"/>
+        <rect x="210" y="402" width="12" height="12" rx="2"/><rect x="224" y="402" width="12" height="12" rx="2"/><rect x="238" y="402" width="12" height="12" rx="2"/>
+        <rect x="252" y="402" width="12" height="12" rx="2"/><rect x="266" y="402" width="12" height="12" rx="2"/><rect x="280" y="402" width="12" height="12" rx="2"/>
+        <rect x="294" y="402" width="12" height="12" rx="2"/><rect x="308" y="402" width="12" height="12" rx="2"/><rect x="322" y="402" width="12" height="12" rx="2"/>
+        <rect x="336" y="402" width="12" height="12" rx="2"/><rect x="350" y="402" width="12" height="12" rx="2"/><rect x="364" y="402" width="12" height="12" rx="2"/>
+      </g>
+      <text x="200" y="436" font-size="12" text-anchor="middle" style="fill:var(--muted)">(1 + 2)³ = 27 calls per klik, nagespeeld.</text>
+    </svg>
+    <figcaption>A: het budget van de aanroeper is 10 s, maar een read-timeout van 15 s met de standaard <code>@Retryable</code> (3 retries, 1 s ertussen) loopt tot 63 s door. Na de fix (connect 1 s, read 3 s, één retry met backoff en jitter) is de slechtste duur 8,3 s. B: elke laag "voegt maar 2 retries toe", maar ze vermenigvuldigen. Met de standaard <code>maxRetries = 3</code> op elke laag zijn het er 4³ = 64.</figcaption>
+  </figure>
+
+  <h3>Fail fast: circuit breaker en bulkhead</h3>
+  <p>Ook met een goede timeout kost elke call naar een kapotte afhankelijkheid nog steeds die volle timeout. Een <b>circuit breaker</b> houdt het foutpercentage bij in een glijdend venster. Boven de drempel gaat hij <i>open</i> en wijst hij calls direct af, zonder netwerk. Na een wachttijd laat hij een paar proefcalls door (<i>half-open</i>), en als die slagen, gaat hij weer dicht. Nagespeeld met Resilience4j 2.3: in open toestand werden 1.000 calls in 19 ms afgewezen met <code>CallNotPermittedException</code>. Twee standaardwaarden zie je in reviews vaak over het hoofd:</p>
+  <ul>
+    <li><code>minimumNumberOfCalls</code> en <code>slidingWindowSize</code> zijn allebei <b>100</b>. Na 99 mislukte calls was de breaker nog dicht, na de 100e open. Bij een afhankelijkheid met 20 calls per minuut duurt het dus minuten voordat de breaker iets doet.</li>
+    <li>Standaard telt <b>elke</b> exception als fout. Tien <code>402</code>-weigeringen (<code>HttpClientErrorException</code>) zetten de breaker open, en dan wordt er niemand meer geautoriseerd omdat een paar kaarten leeg waren. Met <code>ignoreExceptions(HttpClientErrorException.class)</code> bleef hij dicht, en <code>503</code>'s openden hem nog steeds.</li>
+  </ul>
+  <p>Een <b>bulkhead</b> begrenst hoeveel calls er tegelijk naar één afhankelijkheid mogen, zodat een trage fraudeservice niet alle threads of virtual threads opeet die ook de PSP nodig heeft. Spring Framework 7 heeft daarvoor <code>@ConcurrencyLimit</code>. Let op het standaardbeleid: <code>BLOCK</code> laat de overige aanroepers wachten, zonder maximum. Nagespeeld met limiet 3, 10 gelijktijdige aanroepen en 500 ms werk: met <code>BLOCK</code> slaagden alle 10, na 2.005 ms (in vier golven). Met <code>policy = REJECT</code> slaagden er 3 en kregen 7 direct een <code>InvocationRejectedException</code>, een <code>RejectedExecutionException</code>. Alleen <code>REJECT</code> is load shedding. <code>BLOCK</code> verplaatst de wachtrij alleen.</p>
+
+  <h3>Spring Framework 7 of Resilience4j?</h3>
+  <p>Sinds Framework 7 zitten <code>@Retryable</code> en <code>@ConcurrencyLimit</code> in de core (<code>org.springframework.resilience.annotation</code>), net als de programmatische <code>RetryTemplate</code> (<code>org.springframework.core.retry</code>). <a href="concurrency-in-singletons.html">Module 4</a> gebruikte <code>@Retryable</code> al om een transactie opnieuw te doen na een optimistic-lock-conflict. Daar is retry veilig, omdat de hele transactie opnieuw leest en niets buiten de database heeft gedaan. Vier dingen om te weten, allemaal nagespeeld met Framework 7.0.9:</p>
+  <ul>
+    <li>Zonder <code>@EnableResilientMethods</code> doen de annotaties <b>niets</b>, ook in een Spring Boot 4.1-app (1 poging in plaats van 3). Boot heeft er geen autoconfiguratie voor. Het is een proxy, dus <code>this.call()</code> wordt evenmin herhaald (<a href="transacties-en-proxies.html">module 1</a>).</li>
+    <li>De standaardwaarden: <code>maxRetries = 3</code> (4 pogingen), <code>delay = 1000</code> ms vast (<code>multiplier = 1.0</code>), <code>jitter = 0</code>, en herhalen bij <b>elke</b> exception. Gemeten tussenpozen: 1.002, 1.001 en 1.001 ms.</li>
+    <li><code>jitter</code> schaalt mee met <code>multiplier</code> en komt nooit onder de basisdelay. Met <code>delay = 100, multiplier = 2, jitter = 50</code> waren de tussenpozen bijvoorbeeld 134, 292, 379 en 703 ms.</li>
+    <li><code>timeout</code> (sinds 7.0.2) is een budget dat <em>tussen</em> pogingen wordt gecontroleerd. Een lopende poging wordt niet afgebroken. Met <code>timeout = 1000</code> en pogingen van 700 ms duurde het geheel 1.504 ms. Een echte calltimeout moet dus in de HTTP-client zitten.</li>
+  </ul>
+  <p>Een circuit breaker, rate limiter of time limiter zit niet in Spring Framework. Daarvoor gebruik je Resilience4j (of Spring Cloud Circuit Breaker, dat er een abstractie omheen legt). Gebruik je al Resilience4j voor de breaker, neem dan ook de retry daaruit, zodat de volgorde van de decorators op één plek staat. Heb je alleen retry en een concurrency-limiet nodig, dan is een extra bibliotheek niet nodig. Zonder annotatie kan het ook: <code>new RetryTemplate(policy).invoke(() -&gt; psp.status(id))</code>, met de call als <code>Supplier</code> (<a href="lambdas-en-functies.html">F2</a>).</p>
+  <div class="callout"><p><b>Geverifieerd:</b> de getallen in deze module komen uit runs met Spring Boot 4.1.1 (Framework 7.0.9) op JDK 25.0.4, tegen een lokale <code>com.sun.net.httpserver</code> die traag antwoordt, druppelt, <code>402</code>/<code>503</code> geeft of een betaling boekt en pas daarna antwoordt. Resilience4j is getest met de programmatische API van 2.3.0. De annotaties uit de Boot 4-starter (<code>@CircuitBreaker</code> met <code>fallbackMethod</code>) zijn niet gedraaid.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>De betaalservice stapt over op een nieuwe PSP. De auteur heeft gelezen dat Spring 7 retries ingebouwd heeft, zet <code>@EnableResilientMethods</code> op de applicatie en annoteert de client "want de PSP heeft af en toe een hik". In de test tegen de sandbox van de PSP werkt alles, want de sandbox antwoordt altijd in 200 ms.</p>
+  <div class="diff">
+    <div class="diff-head">PspConfig.java · PspClient.java</div>
+<pre><span class="a">+@Configuration</span><span class="a">+class PspConfig {</span><span class="a">+    @Bean</span><span class="a">+    RestClient pspRestClient(RestClient.Builder builder, PspProperties props) {</span><span class="a">+        return builder.baseUrl(props.baseUrl())</span><span class="a">+                .defaultHeader("X-API-Key", props.apiKey())</span><span class="a">+                .build();</span><span class="a">+    }</span><span class="a">+}</span><span class="a">+</span><span class="a">+@Component</span><span class="a">+public class PspClient {</span><span class="a">+</span><span class="a">+    private final RestClient psp;</span><span class="a">+</span><span class="a">+    public PspClient(RestClient pspRestClient) {</span><span class="a">+        this.psp = pspRestClient;</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    @Retryable                                  // de PSP heeft af en toe een hik</span><span class="a">+    public PspAuthorization authorize(PaymentId id, Money amount, CardToken card) {</span><span class="a">+        return psp.post().uri("/payments")</span><span class="a">+                .body(new PspPaymentRequest(id.value(), amount, card))</span><span class="a">+                .retrieve()</span><span class="a">+                .body(PspAuthorization.class);</span><span class="a">+    }</span><span class="a">+}</span></pre>
+  </div>
+  <p>Op een vrijdagmiddag krijgt de PSP een storing in één datacenter. Wat er dan gebeurt:</p>
+  <ol>
+    <li><b>Geen timeout.</b> De builder komt uit Boot en niemand heeft <code>spring.http.clients.*</code> gezet, dus connect- en read-timeout zijn leeg. De p99 van de PSP gaat van 400 ms naar "geen antwoord". Bij 200 checkouts per seconde zijn de 200 Tomcat-threads na een seconde bezet. Daarna faalt ook <code>/refunds</code>, dat de PSP helemaal niet nodig heeft.</li>
+    <li><b>Herstel wordt een storm.</b> Gaat de PSP over op snelle <code>503</code>'s, dan herhaalt <code>@Retryable</code> zonder attributen elke call 3 keer, met precies 1 s ertussen en zonder jitter. Elke seconde krijgt de PSP een golf van 4× de normale load, net als hij weer overeind probeert te komen.</li>
+    <li><b>Weigeringen worden herhaald.</b> Een <code>402</code> (kaart geweigerd) is een <code>HttpClientErrorException</code>, en de standaard <code>@Retryable</code> herhaalt elke exception. Nagespeeld: 4 calls voor één weigering. De klant wacht 3 s extra op hetzelfde "nee", en de issuer ziet vier pogingen op een geweigerde kaart.</li>
+    <li><b>De naïeve fix maakt het erger.</b> De auteur zet na het incident <code>read-timeout: 2s</code>. Nu levert een PSP die de betaling verwerkt maar pas na 2,5 s antwoordt, een <code>ResourceAccessException</code> op, die opnieuw wordt geprobeerd zonder idempotency key. Nagespeeld: 3 requests, 3 boekingen. De klant betaalt drie keer.</li>
+  </ol>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · Timeout per afhankelijkheid, afgeleid van het budget</h4>
+      <p>Zet connect- en read-timeout op de client van deze afhankelijkheid, niet alleen globaal: de PSP, de FX-provider en de fraudeservice hebben elk een andere p99. Kies de read-timeout iets boven de p99,9 van de PSP en reken dan terug vanaf de deadline van de aanroeper (zie diagram A). <b>Prijs:</b> je moet de latency van de PSP kennen en monitoren. Een te krappe timeout breekt calls af die net zouden slagen, en bij een <code>POST</code> is "afgebroken" niet hetzelfde als "niet gebeurd". Bewijs de timeout met een test tegen een trage lokale server, zoals voor deze module: een gemockte <code>RestClient</code> kan niet traag zijn (<a href="tests-die-niets-testen.html">module 5</a>).</p>
+    </div>
+    <div>
+      <h4>B · Retry alleen wat tijdelijk is, met een idempotency key</h4>
+      <p>Alleen I/O-fouten en <code>503</code> herhalen, met backoff, jitter en een maximum dat in het budget past. De idempotency key wordt één keer per betaling bepaald (hier: het payment-ID) en blijft over alle pogingen gelijk. De PSP herkent de herhaling en geeft het eerste resultaat terug. Nagespeeld: 2 requests, 1 boeking. <b>Prijs:</b> je bent afhankelijk van de idempotency-semantiek van de PSP. Adyen bewaart een key bijvoorbeeld 7 tot 14 dagen en geeft een fout (<code>409</code>/<code>422</code>, code 704) als de eerste poging nog loopt. Ook dat antwoord moet je afhandelen.</p>
+    </div>
+    <div>
+      <h4>C · Niet herhalen in het request: "onbekend" als toestand</h4>
+      <p>Bij een time-out zet je de betaling op <code>UNKNOWN</code>, je antwoordt de merchant met <code>202</code> of "pending", en je stelt de uitkomst achteraf vast via de webhook of het status-endpoint van de PSP. <b>Prijs:</b> een extra toestand, reconciliatie en een asynchrone flow voor de merchant. Wel de eerlijkste optie voor geldbewegingen: de retry gebeurt buiten het request, en de klant wacht niet.</p>
+    </div>
+    <div>
+      <h4>D · Circuit breaker vóór de PSP, met een eerlijke fout</h4>
+      <p>Bij veel verkeer stopt een breaker het wachten op de timeout per request zodra duidelijk is dat de PSP weg is: direct een <code>503</code> met <code>Retry-After</code>, of omleiden naar een tweede PSP. <b>Prijs:</b> afstemmen (standaard pas na 100 calls), <code>4xx</code> uitsluiten, en de fallback moet een <em>fout</em> zijn. Een fallback die "geautoriseerd" teruggeeft, is geen resilience maar een leugen.</p>
+    </div>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix A + B · PspConfig.java · PspClient.java</div>
+<pre><span>    @Bean</span><span class="d">-    RestClient pspRestClient(RestClient.Builder builder, PspProperties props) {</span><span class="a">+    RestClient pspRestClient(RestClient.Builder builder,</span><span class="a">+                             ClientHttpRequestFactoryBuilder&lt;?&gt; factories, PspProperties props) {</span><span class="a">+        var settings = HttpClientSettings.defaults()</span><span class="a">+                .withTimeouts(Duration.ofSeconds(1), Duration.ofSeconds(3));   // connect, read</span><span>        return builder.baseUrl(props.baseUrl())</span><span class="a">+                .requestFactory(factories.build(settings))</span><span>                .defaultHeader("X-API-Key", props.apiKey())</span><span>                .build();</span><span>    }</span><span></span><span class="d">-    @Retryable                                  // de PSP heeft af en toe een hik</span><span class="a">+    @Retryable(includes = {ResourceAccessException.class, HttpServerErrorException.ServiceUnavailable.class},</span><span class="a">+               maxRetries = 1, delay = 200, jitter = 100)</span><span>    public PspAuthorization authorize(PaymentId id, Money amount, CardToken card) {</span><span>        return psp.post().uri("/payments")</span><span class="a">+                .header("Idempotency-Key", id.value().toString())   // gelijk over alle pogingen</span><span>                .body(new PspPaymentRequest(id.value(), amount, card))</span><span>                .retrieve()</span><span>                .body(PspAuthorization.class);</span><span>    }</span></pre>
+  </div>
+  <p>Slechtste geval: 2 pogingen × (1 s connect + 3 s read) + maximaal 300 ms backoff = 8,3 s, binnen de 10 s van de gateway. Nagespeeld: de PSP-client gaf na 3.051 ms op, en een andere client die uit dezelfde <code>RestClient.Builder</code> was gebouwd, wachtte nog steeds 8 s. De builder is per injectiepunt een nieuwe instantie, dus instellingen per client lekken niet. Twee dingen die de fix <em>niet</em> oplost: de key is het payment-ID, dus een merchant die na een <code>504</code> zelf opnieuw probeert en daarbij een nieuwe betaling aanmaakt, krijgt een nieuwe key (zie de oefening). En bij één retry per request moet jullie gateway zelf niet ook nog herhalen.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Geen retry op een call die de gebruiker toch herhaalt.</b> Een dashboard dat bij een fout "Opnieuw proberen" toont, of een Kafka-listener waarvan de herlevering al de retry is. Een extra <code>@Retryable</code> voegt daar alleen een laag aan de vermenigvuldiging toe. De consumer moet wel idempotent zijn (<a href="dual-write-en-outbox.html">module 3</a>).</li>
+    <li><b>Een korte, vaste timeout zonder circuit breaker voor een niet-kritieke afhankelijkheid.</b> Het loyaltysaldo op de bedankpagina, 300 ms timeout, en bij een fout tonen we "saldo niet beschikbaar". Bij weinig verkeer heeft een breaker te weinig calls voor een zinnige statistiek, en de timeout begrenst de schade al.</li>
+    <li><b>Een begrensde retry op een idempotente <code>GET</code>, op één laag.</b> Een koers ophalen met één retry op I/O-fouten, backoff en jitter, binnen het budget. Dat is gewoon goed.</li>
+    <li><b>Een fallback die afwezigheid eerlijk teruggeeft.</b> Een lege aanbevelingslijst, <code>Optional.empty()</code> (<a href="optional-en-afwezigheid.html">F3</a>), of een expliciet <code>FraudScore.Unavailable</code> in een sealed type (<a href="functioneel-ontwerp.html">F4</a>, <a href="switch-vs-polymorfisme.html">6b</a>) waar de aanroeper bewust op beslist. Het probleem is een fallback die <em>liegt</em>: "fraudescore laag", "verzending gratis" (<a href="interface-met-een-implementatie.html">6a</a>), "betaling gelukt".</li>
+    <li><b>Een globale timeout via <code>spring.http.clients.*</code></b> als vangnet, met per-client-instellingen waar het ertoe doet. Globaal alleen is een minor: beter dan niets, maar één getal voor PSP, FX en fraude past zelden.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> bij een remote call zonder werkende timeout op een request-pad, een retry rond een niet-idempotente geldoperatie zonder stabiele idempotency key, of een fallback die het falen van een geld- of fraudecontrole in "geslaagd" verandert zonder expliciet besluit en alarm · <span class="sev major">major</span> bij retry zonder backoff/jitter of op <code>4xx</code>, retries op meerdere lagen, een slechtste duur boven de deadline van de aanroeper, een breaker met standaardwaarden op weinig verkeer of zonder <code>4xx</code>-uitsluiting, of <code>@ConcurrencyLimit</code> met <code>BLOCK</code> op een request-pad · <span class="sev minor">minor</span> bij alleen een globale timeout, of retries zonder metric (<code>MethodRetryEvent</code>, Resilience4j-events) · laat gaan bij een begrensde retry op een idempotente call op één laag, of een korte timeout met eerlijke degradatie.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Misschien een timeout en een circuit breaker toevoegen? En retries zijn gevaarlijk.</p><p style="color:var(--muted);font-size:14px">Geen faalscenario, geen getal, geen voorstel. "Misschien" nodigt uit tot "later". De auteur zet <code>read-timeout: 2s</code>, en dan is de dubbele boeking er pas echt.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>pspRestClient</code> komt uit de Boot-builder zonder timeouts, en Boot 4 zet er standaard geen. Lokaal nagespeeld: een call naar een endpoint dat 8 s slaapt, wacht gewoon 8 s. Als de PSP gaat hangen, zijn bij 200 rps de 200 Tomcat-threads na een seconde op, ook voor refunds en health checks.</p><p>Daarnaast herhaalt <code>@Retryable</code> zonder attributen elke exception 3× met een vaste seconde: een <code>402</code> gaat 4× naar de issuer, en zodra er wel een timeout is, wordt een trage maar geslaagde autorisatie zonder <code>Idempotency-Key</code> opnieuw verstuurd. Dat wordt een dubbele boeking (nagespeeld: 3 requests, 3 boekingen).</p><p><b>Voorstel:</b> connect 1 s / read 3 s op deze client, retry alleen op <code>ResourceAccessException</code> en <code>503</code> (<code>maxRetries = 1</code>, met jitter), <code>Idempotency-Key</code> = payment-ID. <b>Vraag:</b> wat is de timeout van de gateway vóór ons? Dan reken ik na of 8,3 s past.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: de autorisatie-API zit achter een gateway met een timeout van 10 s. Merchants proberen het bij een <code>504</code> zelf opnieuw, met hetzelfde <code>reference</code>. De app heeft <code>@EnableResilientMethods</code> en een HikariCP-pool van 10. In <code>application.yml</code> staan geen <code>spring.http.clients.*</code>-properties. De fraudeservice heeft een p99 van 150 ms, de PSP van 1,2 s. De bean <code>pspRestClient</code> heeft connect 1 s en read 5 s.</p>
+  <div class="diff">
+    <div class="diff-head">PR #621 · Fraudescore en valutaconversie vóór autorisatie</div>
+<pre><span><span class="ln">1</span>@Service</span><span><span class="ln">2</span>public class AuthorizationService {</span><span><span class="ln">3</span></span><span><span class="ln">4</span>    private final FraudClient fraud;</span><span><span class="ln">5</span>    private final FxClient fx;</span><span><span class="ln">6</span>    private final PspClient psp;</span><span><span class="ln">7</span>    private final PaymentRepository payments;</span><span><span class="ln">8</span></span><span><span class="ln">9</span>    // constructor weggelaten</span><span><span class="ln">10</span></span><span><span class="ln">11</span>    @Transactional</span><span><span class="ln">12</span>    public AuthorizationResponse authorize(AuthorizeCommand cmd) {</span><span><span class="ln">13</span>        var payment = payments.save(Payment.pending(cmd));</span><span><span class="ln">14</span>        var score = fraud.score(cmd);</span><span><span class="ln">15</span>        if (score.isHigh()) {</span><span><span class="ln">16</span>            payment.reject("FRAUD_SCORE");</span><span><span class="ln">17</span>            return AuthorizationResponse.rejected(payment);</span><span><span class="ln">18</span>        }</span><span><span class="ln">19</span>        var amount = fx.convert(cmd.amount(), cmd.settlementCurrency());</span><span><span class="ln">20</span>        var result = psp.authorize(payment.getId(), amount, cmd.cardToken());</span><span><span class="ln">21</span>        payment.apply(result);</span><span><span class="ln">22</span>        return AuthorizationResponse.from(payment);</span><span><span class="ln">23</span>    }</span><span><span class="ln">24</span>}</span><span><span class="ln">25</span></span><span><span class="ln">26</span>@Component</span><span><span class="ln">27</span>public class FraudClient {</span><span><span class="ln">28</span></span><span><span class="ln">29</span>    private static final Logger log = LoggerFactory.getLogger(FraudClient.class);</span><span><span class="ln">30</span>    private final RestClient rest;</span><span><span class="ln">31</span></span><span><span class="ln">32</span>    public FraudClient(RestClient.Builder builder, @Value("${fraud.base-url}") String baseUrl) {</span><span><span class="ln">33</span>        this.rest = builder.baseUrl(baseUrl).build();</span><span><span class="ln">34</span>    }</span><span><span class="ln">35</span></span><span><span class="ln">36</span>    public FraudScore score(AuthorizeCommand cmd) {</span><span><span class="ln">37</span>        try {</span><span><span class="ln">38</span>            return rest.post().uri("/v2/score")</span><span><span class="ln">39</span>                    .body(FraudRequest.from(cmd))</span><span><span class="ln">40</span>                    .retrieve()</span><span><span class="ln">41</span>                    .body(FraudScore.class);</span><span><span class="ln">42</span>        } catch (RestClientException e) {</span><span><span class="ln">43</span>            log.warn("Fraudescore niet beschikbaar voor {}", cmd.reference());</span><span><span class="ln">44</span>            return FraudScore.LOW;</span><span><span class="ln">45</span>        }</span><span><span class="ln">46</span>    }</span><span><span class="ln">47</span>}</span><span><span class="ln">48</span></span><span><span class="ln">49</span>@Component</span><span><span class="ln">50</span>public class FxClient {</span><span><span class="ln">51</span></span><span><span class="ln">52</span>    private final RestClient rest;</span><span><span class="ln">53</span></span><span><span class="ln">54</span>    public FxClient(RestClient.Builder builder, ClientHttpRequestFactoryBuilder&lt;?&gt; factories,</span><span><span class="ln">55</span>                    @Value("${fx.base-url}") String baseUrl) {</span><span><span class="ln">56</span>        var settings = HttpClientSettings.defaults()</span><span><span class="ln">57</span>                .withTimeouts(Duration.ofMillis(500), Duration.ofSeconds(1));</span><span><span class="ln">58</span>        this.rest = builder.baseUrl(baseUrl).requestFactory(factories.build(settings)).build();</span><span><span class="ln">59</span>    }</span><span><span class="ln">60</span></span><span><span class="ln">61</span>    @Retryable(includes = ResourceAccessException.class, maxRetries = 1, delay = 100, jitter = 50)</span><span><span class="ln">62</span>    public Money convert(Money amount, Currency target) {</span><span><span class="ln">63</span>        var rate = rest.get().uri("/rates/{from}/{to}", amount.currency(), target)</span><span><span class="ln">64</span>                .retrieve()</span><span><span class="ln">65</span>                .body(FxRate.class);</span><span><span class="ln">66</span>        return amount.convert(rate, target);</span><span><span class="ln">67</span>    }</span><span><span class="ln">68</span>}</span><span><span class="ln">69</span></span><span><span class="ln">70</span>@Component</span><span><span class="ln">71</span>public class PspClient {</span><span><span class="ln">72</span></span><span><span class="ln">73</span>    private final RestClient rest;</span><span><span class="ln">74</span></span><span><span class="ln">75</span>    public PspClient(RestClient pspRestClient) {</span><span><span class="ln">76</span>        this.rest = pspRestClient;</span><span><span class="ln">77</span>    }</span><span><span class="ln">78</span></span><span><span class="ln">79</span>    @Retryable(includes = ResourceAccessException.class,</span><span><span class="ln">80</span>               maxRetries = 3, delay = 200, multiplier = 2, jitter = 100)</span><span><span class="ln">81</span>    public PspAuthorization authorize(UUID paymentId, Money amount, CardToken card) {</span><span><span class="ln">82</span>        return rest.post().uri("/payments")</span><span><span class="ln">83</span>                .body(new PspPaymentRequest(paymentId, amount, card))</span><span><span class="ln">84</span>                .retrieve()</span><span><span class="ln">85</span>                .body(PspAuthorization.class);</span><span><span class="ln">86</span>    }</span><span><span class="ln">87</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regels 79–85</b> <span class="sev blocker">blocker</span> Een retry rond een niet-idempotente <code>POST /payments</code>, zonder idempotency key. De configuratie ziet er netjes uit (alleen I/O-fouten, exponentiële backoff, jitter), maar juist <code>ResourceAccessException</code> omvat de read-timeout. Na 5 s weet je niet of de PSP de autorisatie heeft verwerkt, en de retry stuurt hem gewoon nog een keer. Bij een trage PSP kan dezelfde kaart tot 4 keer worden geautoriseerd. Voorstel: een <code>Idempotency-Key</code> die over alle pogingen gelijk blijft. Niet het payment-ID uit regel 13 (zie hieronder), maar een key afgeleid van merchant + <code>reference</code>. Of: geen retry in het request, maar <code>UNKNOWN</code> en reconciliatie.</p>
+      <p><b>Regels 32–33</b> <span class="sev blocker">blocker</span> De fraudeclient heeft geen timeout. De builder komt uit Boot, en er staan geen <code>spring.http.clients.*</code>-properties, dus connect- en read-timeout zijn leeg. Een hangende fraudeservice laat elke autorisatie hangen, mét een databaseconnectie (regel 11), dus na 10 gelijktijdige autorisaties staat de hele service stil. Voorstel: connect ~300 ms, read ~500 ms (boven de p99 van 150 ms), per client, zoals <code>FxClient</code> al doet.</p>
+      <p><b>Regels 42–44</b> <span class="sev blocker">blocker</span> Een fallback die een fout in een geslaagd resultaat verandert: fail-open. Elke storing van de fraudeservice (of een time-out, zodra die er is) maakt van elke betaling een betaling met lage score. Zonder metric, en de log bevat niet eens de exception. Een aanvaller hoeft de fraudeservice alleen traag te krijgen. Fail-open kan een bewuste productkeuze zijn, maar dan expliciet, met een alarm, een limiet (bijvoorbeeld alleen onder een bedrag) en zichtbaar in de code. Voorstel: <code>FraudScore.unavailable()</code> als aparte variant in een sealed type, en de beslissing in <code>AuthorizationService</code>: weigeren, handmatige review, of doorlaten onder een drempel. Zelfde patroon als de gratis verzending in <a href="interface-met-een-implementatie.html">module 6a</a>.</p>
+      <p><b>Regels 79–80 met 11–20</b> <span class="sev major">major</span> Het budget past niet. Slechtste geval PSP: 4 pogingen × (1 s + 5 s) + backoff 200 + 400 + 800 ms (met jitter tot 2,1 s) ≈ 26 s. De gateway geeft na 10 s een <code>504</code>, de merchant probeert opnieuw met hetzelfde <code>reference</code>, en regel 13 maakt een <em>nieuwe</em> <code>Payment</code> met een nieuw ID. Een key op het payment-ID zou daar dus niet helpen. Twee autorisatieketens lopen nu tegelijk voor één aankoop. Voorstel: <code>maxRetries = 1</code> en read ~2–3 s, zodat fraude + FX + PSP binnen 10 s blijven, en dedupliceer op <code>reference</code> (unique constraint) vóór er een betaling wordt aangemaakt.</p>
+      <p><b>Regels 11 en 14–20</b> <span class="sev major">major</span> <i>Uit <a href="transacties-en-proxies.html">module 1</a>.</i> Drie remote calls binnen één databasetransactie. De connectie blijft vast tijdens de fraudecall (zonder timeout), de FX-call en tot 26 s PSP-retries. Met een pool van 10 is dat de snelste weg naar een volledige stilstand. En als de commit na een geslaagde PSP-autorisatie faalt, is er geld gereserveerd zonder record. Voorstel: <code>Payment.pending</code> in een eigen korte transactie opslaan, de calls daarbuiten doen, en het resultaat in een tweede transactie vastleggen.</p>
+      <p><b>Regels 54–66</b> <span class="sev ok">geen probleem</span> De afleider: nog een <code>@Retryable</code>, en nog een remote call. Maar dit is een idempotente <code>GET</code>, met timeouts op deze client (500 ms / 1 s), één retry, alleen op I/O-fouten, met jitter, op één laag. Slechtste geval ongeveer 3,2 s: dat telt mee in het budget, maar is op zich in orde. Een comment "retries zijn gevaarlijk" laat zien dat je de regel kent maar de methode niet hebt gelezen.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort. Lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · voorspellen</span></div>
+      <p class="situ">De service is van Spring Boot 3.5 naar 4.1 gemigreerd. Alles compileert, de tests zijn groen. In <code>application.yml</code> staat nog steeds:</p>
+<pre class="snip">spring:
+  http:
+    client:
+      connect-timeout: 1s
+      read-timeout: 2s</pre>
+      <p class="ask">Hoe lang wacht een <code>RestClient</code> uit de Boot-builder nu op een PSP die hangt?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Onbegrensd. In Boot 4 heten de properties <code>spring.http.clients.*</code>, en de oude namen worden niet meer toegepast.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De metadata van Boot 4.1.1 markeert <code>spring.http.client.read-timeout</code> als deprecated, met als vervanging <code>spring.http.clients.read-timeout</code>. Gebonden wordt hij niet.</li>
+          <li>Nagespeeld: met de oude naam duurde een call naar een endpoint van 8 s 8.019 ms. Met de nieuwe naam faalde hij na 1.002 ms.</li>
+          <li>Er is geen opstartfout en geen exception. Je merkt het pas tijdens een incident.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue (blocking):</b> sinds Boot 4 is het <code>spring.http.clients.connect-timeout</code>/<code>read-timeout</code>. De huidige keys worden genegeerd, dus de PSP-client heeft geen timeout meer (lokaal gecontroleerd: 8 s wachten in plaats van 1 s). Hernoemen, en voor de rest van de migratie tijdelijk <code>spring-boot-properties-migrator</code> toevoegen. Die is bedoeld om hernoemde keys te melden.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · rekenen</span></div>
+      <p class="situ">De auteur wil de totale duur begrenzen en gebruikt het <code>timeout</code>-attribuut van Spring 7. De client heeft een read-timeout van 2 s, en de PSP hangt.</p>
+<pre class="snip">@Retryable(includes = ResourceAccessException.class,
+           maxRetries = 5, delay = 100, timeout = 3000)
+public PspStatus status(PaymentId id) { … }   // GET</pre>
+      <p class="ask">Na hoeveel seconden krijgt de aanroeper ongeveer een exception: 3 of meer?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Na ongeveer 4,1 s. Het budget wordt alleen tussen pogingen gecontroleerd, en een lopende poging wordt afgemaakt.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Poging 1 faalt na 2 s. Volgens de policy komt er nog een retry: 2 s + 100 ms backoff is minder dan 3 s, dus poging 2 start.</li>
+          <li>Poging 2 duurt tot ~4,1 s. Pas daarna ziet de <code>RetryTemplate</code> dat het budget op is.</li>
+          <li>Nagespeeld met <code>timeout = 1000</code> en pogingen van 700 ms: 2 pogingen, 1.504 ms totaal.</li>
+        </ul>
+        <p class="a-lbl">Vuistregel</p>
+        <ul><li>Slechtste duur ≈ <code>timeout</code> + één volledige calltimeout. Reken dat tegen de deadline van de aanroeper, en zet de echte grens per call in de HTTP-client.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 2 · kiezen</span></div>
+      <p class="situ">Twee versies van dezelfde fix voor dubbele boekingen. De PSP dedupliceert op de header.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A</p>
+<pre class="snip">@Retryable(includes = ResourceAccessException.class,
+           maxRetries = 2, delay = 100)
+public Charge charge(ChargeRequest req) {
+    return rest.post().uri("/charges")
+        .header("Idempotency-Key",
+                UUID.randomUUID().toString())
+        .body(req).retrieve()
+        .body(Charge.class);
+}</pre></div>
+        <div><p class="snip-label">B</p>
+<pre class="snip">@Retryable(includes = ResourceAccessException.class,
+           maxRetries = 2, delay = 100)
+public Charge charge(ChargeRequest req,
+                     String idempotencyKey) {
+    return rest.post().uri("/charges")
+        .header("Idempotency-Key", idempotencyKey)
+        .body(req).retrieve()
+        .body(Charge.class);
+}</pre></div>
+      </div>
+      <p class="ask">Welke voorkomt een dubbele boeking als de PSP traag antwoordt, en waarom de andere niet?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">B. In A maakt elke poging een nieuwe key, dus voor de PSP is elke retry een nieuwe betaling.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De retry-proxy roept de hele methode opnieuw aan, dus ook <code>UUID.randomUUID()</code>.</li>
+          <li>Nagespeeld (boeken, dan na 1,5 s antwoorden, read-timeout 1 s): A gaf 3 requests en 3 boekingen. B gaf 2 requests, 1 boeking, en de aanroep slaagde.</li>
+          <li>De key hoort bij de bedoeling ("deze betaling"), niet bij de poging. Bepaal hem dus buiten de retry-grens: uit het betalings-ID of de <code>reference</code> van de merchant, en bewaar hem bij de betaling.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Loopt de eerste poging nog, dan geven sommige PSP's een fout terug in plaats van te wachten. Adyen antwoordt dan met <code>409</code> of <code>422</code> en code 704. Die fout moet je dus ook niet als "mislukt" behandelen.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">De fraudeservice krijgt ongeveer 20 calls per minuut. Iemand zet er een Resilience4j-breaker voor.</p>
+<pre class="snip">var breaker = CircuitBreaker.ofDefaults("fraud");
+FraudScore score = breaker.executeSupplier(() -&gt; fraudApi.score(cmd));</pre>
+      <p class="ask">De fraudeservice gaat om 14:00 volledig down. Wanneer gaat de breaker open, en wat doet hij met <code>4xx</code>-antwoorden?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Pas na 100 calls, dus na ongeveer 5 minuten. En <code>4xx</code>-antwoorden tellen standaard ook als fout, dus een reeks validatiefouten kan hem openzetten terwijl de service gezond is.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Standaard: <code>minimumNumberOfCalls = 100</code>, <code>slidingWindowSize = 100</code> (op aantal), <code>failureRateThreshold = 50</code>, 60 s open. Nagespeeld: na 99 mislukte calls dicht, na 100 open.</li>
+          <li>Tot dat moment kost elke call de volle timeout, en zonder timeout hangt hij (zie de oefening).</li>
+          <li>Standaard telt elke exception: 10× <code>402</code> zette in de test de breaker open. Met <code>ignoreExceptions(HttpClientErrorException.class)</code> niet.</li>
+        </ul>
+        <p class="a-lbl">Beter</p>
+        <ul><li>Een venster op tijd (<code>TIME_BASED</code>) of een lage <code>minimumNumberOfCalls</code> die bij dit volume past, <code>4xx</code> uitsluiten, en bij open breaker een expliciete beslissing (<code>FraudScore.unavailable()</code>), geen stille "LOW".</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">De app draait op virtual threads. Om de PSP niet te overbelasten, staat in de PR:</p>
+<pre class="snip">@ConcurrencyLimit(20)
+public PspAuthorization authorize(…) { … }   // read-timeout 3 s</pre>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev major">major</span>: de grens klopt, maar het standaardbeleid <code>BLOCK</code> laat iedereen boven de 20 onbeperkt wachten. Zo wordt de bulkhead een wachtrij.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>De PSP is nu beschermd, dus het is geen blocker. Maar bij een trage PSP stapelen virtual threads zich op achter de limiet, en de gateway geeft na 10 s een <code>504</code> terwijl het werk later alsnog doorgaat (diagram A).</li>
+          <li>Nagespeeld met limiet 3, 10 aanroepen van 500 ms: met <code>BLOCK</code> slaagden alle 10, na 2 s. Met <code>REJECT</code> slaagden er 3 en gaven 7 direct een <code>InvocationRejectedException</code>.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>@ConcurrencyLimit</code> blokkeert standaard (<code>BLOCK</code>) zonder maximale wachttijd. Bij een trage PSP wachten request 21 en verder onbeperkt achter de limiet, en geven we pas een fout als de gateway al heeft opgegeven. Voorstel: <code>policy = REJECT</code> (sinds 7.0.3) en <code>InvocationRejectedException</code> vertalen naar <code>503</code> met <code>Retry-After</code>. Wil je kort wachten, gebruik dan een Resilience4j-<code>Bulkhead</code> met <code>maxWaitDuration</code>.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Spring Framework Reference, <a href="https://docs.spring.io/spring-framework/reference/core/resilience.html">Resilience Features</a>: de secties <i>@Retryable</i>, <i>@ConcurrencyLimit</i>, <i>Enabling Resilient Methods</i> en <i>Programmatic Retry Support</i>. Spring Boot Reference, <a href="https://docs.spring.io/spring-boot/reference/io/rest-client.html">Calling REST Services</a>: <i>HTTP Client Detection for RestClient and RestTemplate</i> en <i>Global HTTP Client Configuration</i>.</li>
+    <li>Google, <i>Site Reliability Engineering</i>, <a href="https://sre.google/sre-book/addressing-cascading-failures/">hoofdstuk 22 Addressing Cascading Failures</a>: de secties <i>Retries</i> (de 4³ = 64-rekensom) en <i>Latency and Deadlines</i> (een deadline doorgeven in plaats van per laag een eigen timeout).</li>
+    <li>Marc Brooker, <a href="https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/">Exponential Backoff And Jitter</a> (AWS Architecture Blog): full, equal en decorrelated jitter, met simulaties.</li>
+    <li>Resilience4j, <a href="https://resilience4j.readme.io/docs/circuitbreaker">CircuitBreaker</a>: glijdende vensters en de tabel met standaardwaarden. Adyen, <a href="https://docs.adyen.com/development-resources/api-idempotency">API idempotency</a>: hoe lang een key geldig is en wat er gebeurt bij gelijktijdige requests met dezelfde key.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

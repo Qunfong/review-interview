@@ -206,11 +206,11 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
       <li><span class="n">5</span><a href="modules/tests-die-niets-testen.html"><span class="t">Tests die niets testen</span></a><span class="s">Groene tests bij echte bugs aantonen met mutanten, mocks vs fakes vs slices · 40 min · D4</span></li>
       <li><span class="n">6a</span><a href="modules/interface-met-een-implementatie.html"><span class="t">Interface met één implementatie</span></a><span class="s">Header interface vs port, afhankelijkheidsrichting, wat weghalen kost · 40 min · D3</span></li>
       <li><span class="n">6b</span><a href="modules/switch-vs-polymorfisme.html"><span class="t">Switch vs polymorfisme</span></a><span class="s">Vijf varianten vergeleken, sealed types, wat de compiler wel en niet controleert · 45 min · D1 · D3</span></li>
-      <li class="todo"><span class="n">7</span><span class="t">API- en schema-evolutie</span><span class="s">Backward compatibility, expand–contract · D7 · in voorbereiding</span></li>
-      <li class="todo"><span class="n">8</span><span class="t">Security in review</span><span class="s">IDOR, injectie, gevoelige data in logs · D9 · in voorbereiding</span></li>
-      <li class="todo"><span class="n">9</span><span class="t">Resilience</span><span class="s">Timeouts, retries, circuit breakers · D7 · in voorbereiding</span></li>
-      <li class="todo"><span class="n">10</span><span class="t">Observability</span><span class="s">Logs, metrics en traces die je in een incident helpen · D7 · in voorbereiding</span></li>
-      <li class="todo"><span class="n">11</span><span class="t">Exceptions en foutafhandeling</span><span class="s">Fouten die verdwijnen, veranderen of lekken · D1 · D2 · in voorbereiding</span></li>
+      <li><span class="n">7</span><a href="modules/api-en-schema-evolutie.html"><span class="t">API- en schema-evolutie</span></a><span class="s">Stille breaking changes onder Jackson 3, expand–contract over deploys, Spring 7 API-versioning · 45 min · D7</span></li>
+      <li><span class="n">8</span><a href="modules/security-in-review.html"><span class="t">Security in review</span></a><span class="s">IDOR, JPQL-injectie, PAN/IBAN die lekken via logs, toString() en foutresponses · 45 min · D9</span></li>
+      <li><span class="n">9</span><a href="modules/resilience.html"><span class="t">Resilience</span></a><span class="s">Timeouts die werken, retries die niet dubbel afschrijven, fallbacks die niet liegen · 45 min · D7</span></li>
+      <li><span class="n">10</span><a href="modules/observability.html"><span class="t">Observability</span></a><span class="s">Logregels die je in een incident helpen, metric-cardinaliteit, trace-context over threads · 40 min · D7</span></li>
+      <li><span class="n">11</span><a href="modules/exceptions-en-foutafhandeling.html"><span class="t">Exceptions en foutafhandeling</span></a><span class="s">Exception of waarde, vertalen met cause, rollback per exceptietype, ProblemDetail · 45 min · D1 · D2</span></li>
       </ol>
     </div>
     <div class="track">
@@ -221,7 +221,7 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
       <li><span class="n">F2</span><a href="modules/lambdas-en-functies.html"><span class="t">Lambda's en functies</span></a><span class="s">Wat een lambda of method reference vasthoudt en wanneer, en wanneer een methode, eigen interface of loop beter is · 45 min · D1</span></li>
       <li><span class="n">F3</span><a href="modules/optional-en-afwezigheid.html"><span class="t">Optional en afwezigheid</span></a><span class="s">orElse vs orElseGet, null-cascades herschrijven, Optional vs JSpecify <code>@Nullable</code> · 45 min · D1</span></li>
       <li><span class="n">F4</span><a href="modules/functioneel-ontwerp.html"><span class="t">Functioneel ontwerp</span></a><span class="s">Pure kern en dunne schil, records die hun invariant bewaken, sealed uitkomsten · 45 min · D1 · D3</span></li>
-      <li class="todo"><span class="n">F5</span><span class="t">Gatherers (verdieping)</span><span class="s">Eigen stream-stappen met Java 24+ · D1 · in voorbereiding</span></li>
+      <li><span class="n">F5</span><a href="modules/gatherers-en-geavanceerde-streams.html"><span class="t">Gatherers (verdieping)</span></a><span class="s">Eigen stream-stappen, windowFixed/scan/fold, mapConcurrent vs parallelStream · 50 min · D1</span></li>
       </ol>
     </div>
   </div>
@@ -241,7 +241,7 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
           <li>Streams, collectors, <code>Optional</code> als returntype · <a href="modules/streams-lezen-en-schrijven.html">module F1</a> · <a href="modules/optional-en-afwezigheid.html">module F3</a> · <a href="modules/lambdas-en-functies.html">lambda's: module F2</a></li>
           <li>Generics: PECS, wildcards, type erasure</li>
           <li><code>equals</code>/<code>hashCode</code>/<code>compareTo</code>-contracten, immutability</li>
-          <li>Exceptions: checked vs unchecked, exception-vertaling, nooit slikken</li>
+          <li>Exceptions: checked vs unchecked, exception-vertaling, nooit slikken · <a href="modules/exceptions-en-foutafhandeling.html">module 11</a></li>
           <li>Keuze van collections en hun complexiteit</li>
         </ul></div>
         <div><h4>Signaleren in review</h4><ul class="flags">
@@ -249,7 +249,7 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
           <li><code>instanceof</code>-ketens die een sealed type met switch moeten zijn · <a href="modules/switch-vs-polymorfisme.html">module 6b</a></li>
           <li>Mutable DTO's waar een record past</li>
           <li>Side effects in streams, <code>peek</code> voor logica</li>
-          <li>Lege <code>catch</code>, <code>catch (Exception e)</code>, verloren stacktrace</li>
+          <li>Lege <code>catch</code>, <code>catch (Exception e)</code>, verloren stacktrace · <a href="modules/exceptions-en-foutafhandeling.html">module 11</a></li>
           <li>Thread-locals of zware objecten per virtual thread</li>
         </ul></div>
       </div>
@@ -371,18 +371,18 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
           <li>Servicegrenzen, sync vs async communicatie</li>
           <li>Kafka: partities, ordering, consumer groups, at-least-once, idempotente consumers</li>
           <li>Transactional outbox, sagas (choreografie vs orkestratie) · <a href="modules/dual-write-en-outbox.html">module 3</a></li>
-          <li>Resilience: timeouts, retries met backoff, circuit breaker, bulkhead</li>
-          <li>Observability: gestructureerde logs, Micrometer-metrics, OpenTelemetry-tracing</li>
-          <li>API- en schema-evolutie, backward compatibility</li>
+          <li>Resilience: timeouts, retries met backoff, circuit breaker, bulkhead · <a href="modules/resilience.html">module 9</a></li>
+          <li>Observability: gestructureerde logs, Micrometer-metrics, OpenTelemetry-tracing · <a href="modules/observability.html">module 10</a></li>
+          <li>API- en schema-evolutie, backward compatibility · <a href="modules/api-en-schema-evolutie.html">module 7</a></li>
           <li>12-factor, Docker-images, Kubernetes-probes en resource limits</li>
         </ul></div>
         <div><h4>Signaleren in review</h4><ul class="flags">
-          <li>HTTP-client zonder timeout</li>
-          <li>Retry op niet-idempotente operaties</li>
+          <li>HTTP-client zonder timeout · <a href="modules/resilience.html">module 9</a></li>
+          <li>Retry op niet-idempotente operaties · <a href="modules/resilience.html">module 9</a></li>
           <li>Database-commit en Kafka-publish zonder outbox (dual write)</li>
-          <li>Breaking change in een event- of API-contract</li>
+          <li>Breaking change in een event- of API-contract · <a href="modules/api-en-schema-evolutie.html">module 7</a></li>
           <li>Gedeelde database tussen services</li>
-          <li>Geen correlatie-ID in logs</li>
+          <li>Geen correlatie-ID in logs · <a href="modules/observability.html">module 10</a></li>
         </ul></div>
       </div>
     </details>
@@ -417,8 +417,8 @@ footer{margin-top:64px;color:var(--muted);font-size:14px}
           <li>Veilig loggen: geen tokens, wachtwoorden of PII</li>
         </ul></div>
         <div><h4>Signaleren in review</h4><ul class="flags">
-          <li>String-concatenatie in SQL of JPQL</li>
-          <li>Endpoints zonder autorisatiecheck op objectniveau (IDOR)</li>
+          <li>String-concatenatie in SQL of JPQL · <a href="modules/security-in-review.html">module 8</a></li>
+          <li>Endpoints zonder autorisatiecheck op objectniveau (IDOR) · <a href="modules/security-in-review.html">module 8</a></li>
           <li>Secrets in code of <code>application.yml</code></li>
           <li>Exception-details naar de client</li>
           <li>Deserialisatie van onvertrouwde input</li>

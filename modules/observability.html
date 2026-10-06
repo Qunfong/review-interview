@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Observability · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module beoordeel je logregels, metrics en trace-propagatie in een diff op wat ze je om drie uur 's nachts opleveren: context, cardinaliteit en een traceId dat niet onderweg verdwijnt.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="observability">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 10 · D7 Microservices</p>
+  <h1>Observability: signalen die je in een incident helpen</h1>
+  <p class="lede">Om 03:12 gaat de pager: 8% van de captures faalt. Wat je dan hebt, is wat iemand drie maanden geleden in een PR heeft gelogd, gemeten en doorgegeven. Een logregel zonder betaling-ID, een metric die de monitoring laat omvallen of een traceId dat bij de eerste executor verdwijnt, kost je in dat incident uren, en een IBAN in de log kost je een datalek-melding.</p>
+  <div class="meta"><span><b>Tijd</b> 40 min</span><span><b>Stack</b> Java 25 · Spring Boot 4.1 · Micrometer 1.17 · OpenTelemetry</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Een logregel <b>beoordelen</b> op bruikbaarheid in een incident: niveau, context als velden, de exception als laatste argument, en één keer gelogd aan de grens in plaats van loggen-en-opnieuw-gooien.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span>Een metric-tag met onbegrensde cardinaliteit <b>herkennen</b> (klant-ID, betaling-ID, ruwe URI) en <b>uitleggen</b> waar die waarde dan wél thuishoort: high-cardinality key-value op de span, of een veld in de log.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span><b>Voorspellen</b> waar trace-context verloren gaat (eigen executor, <code>CompletableFuture</code> zonder executor, virtual threads, <code>@Async</code>) en de fix <b>kiezen</b>: <code>spring.task.execution.propagate-context</code>, <code>ContextPropagatingTaskDecorator</code> of <code>ContextExecutorService.wrap</code>.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>De <b>zwaarte inschatten</b> van een observability-bevinding, inclusief gevoelige data in logs, en er een comment over schrijven met het gevolg in een incident.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Komt de stacktrace in de log bij <code>log.error("Capture mislukt voor {}", id, e)</code>? En bij <code>log.error("Capture mislukt voor {}", e, id)</code>?</li>
+      <li>Je zet <code>customerId</code> als tag op een counter. Er zijn 200.000 klanten. Hoeveel tijdreeksen kost dat, en wanneer verdwijnen ze weer?</li>
+      <li>Een request heeft traceId <code>4bf9…</code>. De controller geeft werk aan een <code>@Async</code>-methode die logt. Staat <code>4bf9…</code> in die logregel?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Logs, metrics en traces zijn geen drie manieren om hetzelfde op te schrijven. Ze beantwoorden elk een andere vraag, en ze kosten op een andere manier geld:</p>
+  <ul>
+    <li><b>Metrics</b> zijn aggregaten: een counter of timer per unieke combinatie van naam en tags. Een miljoen captures met <code>psp=adyen</code> kosten evenveel opslag als één. Een nieuwe tagwaarde kost een nieuwe tijdreeks, en die blijft in het geheugen van je applicatie (Micrometer houdt elke meter vast) en in je metrics-backend. De kosten schalen dus met de <b>cardinaliteit</b>, het aantal unieke tagcombinaties, en niet met het aantal events. Combinaties vermenigvuldigen: 3 PSP's × 5 uitkomsten × 20.000 klanten.</li>
+    <li><b>Traces</b> volgen één request door alle services heen, als boom van spans. Ze kosten per request en worden daarom gesampled: Spring Boot bewaart standaard 10% (<code>management.tracing.sampling.probability=0.1</code>). Een span mag hoge-cardinaliteitsdata dragen, zoals een betaling-ID, want hij wordt niet geaggregeerd.</li>
+    <li><b>Logs</b> zijn events, één regel per gebeurtenis, met de details die je in de andere twee niet kwijt kunt: welk object, welke foutcode, welke stacktrace. Ze kosten per regel en per byte, en ze worden breed gelezen en lang bewaard. Daarom horen er geen tokens of persoonsgegevens in.</li>
+  </ul>
+  <p>In een incident loop je ze in die volgorde af: de metric zegt <em>dat</em> het misgaat, de trace zegt <em>waar</em>, de log zegt <em>wat</em>. Dat werkt alleen als ze aan elkaar te koppelen zijn. Het koppelstuk is het <b>traceId</b>: Micrometer Tracing zet <code>traceId</code> en <code>spanId</code> in de MDC zodra een span actief is, en Boot zet ze in elke logregel (in het standaardpatroon via <code>logging.pattern.correlation</code>, bij gestructureerde logging als JSON-velden).</p>
+  <figure>
+    <svg viewBox="0 0 400 600" role="img" aria-labelledby="fig1-title">
+  <title id="fig1-title">Drie lagen onder elkaar. Metrics beantwoorden of er iets mis is en hoe erg, en kosten per unieke tagcombinatie. Traces beantwoorden waar in de keten de tijd of fout zit, per request en gesampled. Logs beantwoorden wat er precies gebeurde met welk object, per regel. Metrics leiden via tijdvenster en tags naar traces; traces en logs zijn verbonden door hetzelfde traceId. Bij elke laag staat in rood wat de verbinding of het signaal breekt.</title>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+  </defs>
+
+  <!-- Metrics -->
+  <rect x="0" y="0" width="400" height="160" rx="8" style="fill:none;stroke:currentColor"/>
+  <text x="14" y="24" font-size="13" font-weight="600" class="mono" style="fill:var(--accent)">METRICS</text>
+  <text x="386" y="24" font-size="11" text-anchor="end" style="fill:var(--muted)">kost: per unieke tagcombinatie</text>
+  <text x="14" y="50" font-size="15" font-weight="600" style="fill:currentColor">Is er iets mis, hoe erg, sinds wanneer?</text>
+  <rect x="14" y="62" width="372" height="50" rx="4" style="fill:var(--code-bg)"/>
+  <text x="24" y="82" font-size="12" class="mono" style="fill:currentColor">payment.capture{psp=adyen,</text>
+  <text x="24" y="100" font-size="12" class="mono" style="fill:currentColor">  error=PspTimeoutException}  ↑ 8%</text>
+  <text x="14" y="134" font-size="12" font-weight="600" style="fill:var(--blocker)">breekt als: tag = customerId of ruwe URI</text>
+  <text x="14" y="150" font-size="12" style="fill:var(--blocker)">(elke waarde een eigen tijdreeks, tot de herstart)</text>
+
+  <line x1="200" y1="160" x2="200" y2="196" style="stroke:currentColor" marker-end="url(#arr)"/>
+  <text x="212" y="184" font-size="12" style="fill:currentColor">tijdvenster + psp-tag</text>
+
+  <!-- Traces -->
+  <rect x="0" y="198" width="400" height="176" rx="8" style="fill:none;stroke:currentColor"/>
+  <text x="14" y="222" font-size="13" font-weight="600" class="mono" style="fill:var(--accent)">TRACES</text>
+  <text x="386" y="222" font-size="11" text-anchor="end" style="fill:var(--muted)">kost: per request × spans, gesampled</text>
+  <text x="14" y="248" font-size="15" font-weight="600" style="fill:currentColor">Waar in de keten zit de fout of de tijd?</text>
+  <rect x="14" y="260" width="372" height="18" rx="3" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+  <text x="22" y="273" font-size="11" class="mono" style="fill:currentColor">POST /payments/{id}/capture  2.04 s</text>
+  <rect x="34" y="284" width="330" height="18" rx="3" style="fill:none;stroke:var(--blocker);stroke-width:1.5"/>
+  <text x="42" y="297" font-size="11" class="mono" style="fill:currentColor">payment.capture → PSP  2.00 s  timeout</text>
+  <text x="14" y="322" font-size="11" class="mono" style="fill:var(--muted)">traceId 4bf92f3577b34da6a3ce929d0e0e4736</text>
+  <text x="14" y="346" font-size="12" font-weight="600" style="fill:var(--blocker)">breekt als: werk naar een eigen executor gaat</text>
+  <text x="14" y="362" font-size="12" style="fill:var(--blocker)">(lege context: losse trace, logs zonder traceId)</text>
+
+  <line x1="200" y1="374" x2="200" y2="410" style="stroke:currentColor" marker-end="url(#arr)"/>
+  <text x="212" y="398" font-size="12" style="fill:currentColor">zelfde traceId (MDC)</text>
+
+  <!-- Logs -->
+  <rect x="0" y="412" width="400" height="188" rx="8" style="fill:none;stroke:currentColor"/>
+  <text x="14" y="436" font-size="13" font-weight="600" class="mono" style="fill:var(--accent)">LOGS</text>
+  <text x="386" y="436" font-size="11" text-anchor="end" style="fill:var(--muted)">kost: per regel × grootte</text>
+  <text x="14" y="462" font-size="15" font-weight="600" style="fill:currentColor">Wat gebeurde er precies, met welk object?</text>
+  <rect x="14" y="474" width="372" height="78" rx="4" style="fill:var(--code-bg)"/>
+  <text x="24" y="492" font-size="11" class="mono" style="fill:currentColor">{"level":"ERROR","traceId":"4bf92f35…",</text>
+  <text x="24" y="508" font-size="11" class="mono" style="fill:currentColor"> "message":"PSP call failed",</text>
+  <text x="24" y="524" font-size="11" class="mono" style="fill:currentColor"> "pspReference":"psp_8813","pspErrorCode":"504",</text>
+  <text x="24" y="540" font-size="11" class="mono" style="fill:currentColor"> "stack_trace":"…SocketTimeoutException…"}</text>
+  <text x="14" y="574" font-size="12" font-weight="600" style="fill:var(--blocker)">breekt als: geen exception, geen ids als velden,</text>
+  <text x="14" y="590" font-size="12" style="fill:var(--blocker)">twee keer gelogd, of een IBAN of token in de regel</text>
+</svg>
+    <figcaption>Elke laag beantwoordt een andere vraag en heeft een eigen kostenmodel. De pijlen zijn de koppelingen die je tijdens een incident volgt; in rood staat per laag wat er in een PR misgaat, zodat het signaal of de koppeling er om 03:12 niet is.</figcaption>
+  </figure>
+
+  <h3>Waarom trace-context verdwijnt</h3>
+  <p>De "actieve span" is geen eigenschap van de request maar van de <em>thread</em>. In Micrometer zit de huidige <code>Observation</code> in een <code>ThreadLocal</code>; OpenTelemetry bewaart zijn <code>Context</code> ook per thread; en de MDC van SLF4J is een <code>ThreadLocal</code>-map. Zolang de request op één thread blijft, gaat alles goed. Geef je werk aan een andere thread, dan gaat alleen je <code>Runnable</code> mee. De worker begint met een lege context: geen span, geen <code>traceId</code> in de MDC, en een uitgaande HTTP-call vanuit die thread begint een nieuwe, losse trace.</p>
+  <p>De library <i>context-propagation</i> (een dependency van Micrometer Tracing) lost dat op met een <b>snapshot</b>: bij het indienen van de taak worden de geregistreerde <code>ThreadLocal</code>-waarden vastgelegd (<code>ContextSnapshot</code>), in de worker vóór de taak teruggezet en daarna weer opgeruimd. Spring Framework levert daarvoor de <code>ContextPropagatingTaskDecorator</code>; voor een kale <code>ExecutorService</code> is er <code>ContextExecutorService.wrap(...)</code>.</p>
+  <figure>
+    <svg viewBox="0 0 400 300" role="img" aria-labelledby="fig2-title">
+  <title id="fig2-title">De request-thread heeft traceId 4bf9 in een ThreadLocal. Bij submit naar een gewone executor gaat alleen de Runnable mee: de worker-thread heeft traceId null. Met een ContextPropagatingTaskDecorator gaat er een ContextSnapshot mee, die de worker voor de taak herstelt en daarna weer opruimt: traceId 4bf9.</title>
+  <defs>
+    <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+    <marker id="arr2-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--blocker)"/></marker>
+    <marker id="arr2-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+  </defs>
+  <text x="0" y="14" font-size="12" style="fill:var(--muted)">tijd →</text>
+  <rect x="0" y="24" width="400" height="44" rx="6" style="fill:var(--accent-soft);stroke:currentColor"/>
+  <text x="12" y="42" font-size="12" font-weight="600" class="mono" style="fill:currentColor">http-nio-exec-1</text>
+  <text x="12" y="60" font-size="12" class="mono" style="fill:currentColor">ThreadLocal: traceId 4bf9…</text>
+  <circle cx="300" cy="46" r="5" style="fill:currentColor"/>
+  <text x="312" y="50" font-size="12" class="mono" style="fill:currentColor">submit</text>
+
+  <!-- A -->
+  <path d="M300,68 V96 H140 V122" style="fill:none;stroke:var(--blocker);stroke-width:2" marker-end="url(#arr2-bad)"/>
+  <text x="150" y="90" font-size="12" style="fill:currentColor">A · alleen de Runnable</text>
+  <rect x="40" y="124" width="300" height="44" rx="6" style="fill:none;stroke:var(--blocker);stroke-width:1.5"/>
+  <text x="52" y="142" font-size="12" font-weight="600" class="mono" style="fill:currentColor">pool-1-thread-3</text>
+  <text x="52" y="160" font-size="12" class="mono" style="fill:var(--blocker)">traceId null · MDC leeg · losse trace</text>
+
+  <!-- B -->
+  <path d="M300,68 V96 H372 V198 H140 V222" style="fill:none;stroke:var(--ok);stroke-width:2" marker-end="url(#arr2-ok)"/>
+  <text x="150" y="192" font-size="12" style="fill:currentColor">B · Runnable + ContextSnapshot</text>
+  <rect x="40" y="224" width="360" height="44" rx="6" style="fill:none;stroke:var(--ok);stroke-width:1.5"/>
+  <text x="52" y="242" font-size="12" font-weight="600" class="mono" style="fill:currentColor">task-1</text>
+  <text x="52" y="260" font-size="12" class="mono" style="fill:var(--ok)">herstel → traceId 4bf9… → taak → opruimen</text>
+  <text x="200" y="292" font-size="12" text-anchor="middle" style="fill:var(--muted)">B: de snapshot wordt vastgelegd bij submit</text>
+</svg>
+    <figcaption>A: een gewone executor krijgt alleen de taak; de worker-thread weet niets van de request. B: de decorator neemt een snapshot mee, zet die in de worker terug en ruimt hem na de taak op, zodat de pooled thread niet de context van de vorige taak houdt.</figcaption>
+  </figure>
+  <p>Twee details die in een review het verschil maken:</p>
+  <ul>
+    <li><b>Wat er standaard wordt doorgegeven, is de observation, niet de hele MDC.</b> De tracing-bridge zet <code>traceId</code>/<code>spanId</code> bij het herstellen van de scope opnieuw in de MDC. Een eigen MDC-sleutel (<code>MDC.put("merchantId", …)</code>) gaat níét mee, tenzij je een <code>Slf4jThreadLocalAccessor</code> registreert.</li>
+    <li><b>Een gelogd traceId betekent niet dat de trace bestaat.</b> Ook een niet-gesamplede span heeft een traceId en zet dat in de MDC. Met de standaard sampling vind je voor 9 van de 10 logregels geen trace in je backend. Voor de koppeling log ↔ log werkt het traceId altijd, voor log → trace alleen bij gesamplede requests.</li>
+  </ul>
+  <div class="callout"><p><b>Geverifieerd</b> met Spring Boot 4.1.1, Micrometer 1.17.1, Micrometer Tracing 1.7.1 met de OpenTelemetry-bridge (OTel SDK 1.62.0) en context-propagation 1.2.1 op JDK 25. Tracer handmatig opgezet, omdat Boots tracing-autoconfiguratie niet offline beschikbaar was. Context kwijt bij <code>Executors.newFixedThreadPool</code>, <code>newVirtualThreadPerTaskExecutor</code>, <code>CompletableFuture.supplyAsync</code> zonder executor en een <code>parallelStream</code>-worker; context aanwezig met <code>ContextPropagatingTaskDecorator</code> en <code>ContextExecutorService.wrap</code>, maar zonder de eigen MDC-sleutel tot <code>Slf4jThreadLocalAccessor</code> geregistreerd was. <code>@Async</code> in Boot: traceId aanwezig met <code>spring.task.execution.propagate-context=true</code>, <code>null</code> zonder. Een span met sampler <i>always off</i> had een traceId en <code>sampled=false</code>.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>Een capture-service roept de betaalprovider (PSP) aan en laat daarna de merchant weten dat het gelukt is. Er is geen <code>@ExceptionHandler</code> voor <code>PspException</code>. De PR voegt een counter toe, "zodat we per klant kunnen zien hoeveel er gecapturet wordt", en verplaatst de merchant-notificatie naar een eigen pool, "zodat de response niet op de merchant wacht".</p>
+  <div class="diff">
+    <div class="diff-head">CaptureService.java</div>
+<pre><span>@Service</span><span>public class CaptureService {</span><span></span><span>    private static final Logger log = LoggerFactory.getLogger(CaptureService.class);</span><span class="a">+   private final ExecutorService webhooks = Executors.newFixedThreadPool(4);</span><span></span><span>    private final PaymentRepository payments;</span><span>    private final PspClient psp;               // PspException is unchecked</span><span>    private final MerchantNotifier notifier;   // HTTP-call naar de merchant</span><span>    private final MeterRegistry meters;</span><span></span><span>    // constructor-injectie weggelaten</span><span></span><span class="a">+   public CaptureResult capture(CaptureCommand cmd) {</span><span class="a">+       var payment = payments.findById(cmd.paymentId())</span><span class="a">+               .orElseThrow(() -&gt; new PaymentNotFoundException(cmd.paymentId()));</span><span class="a">+       try {</span><span class="a">+           var result = psp.capture(payment.pspReference(), cmd.amount());</span><span class="a">+           meters.counter("payments.captured",</span><span class="a">+                   "psp", payment.psp(), "customer", payment.customerId()).increment();</span><span class="a">+           webhooks.execute(() -&gt; notifier.captured(payment, result));</span><span class="a">+           return result;</span><span class="a">+       } catch (PspException e) {</span><span class="a">+           log.error("Capture failed: " + e.getMessage());</span><span class="a">+           throw e;</span><span class="a">+       }</span><span class="a">+   }</span><span>}</span></pre>
+  </div>
+  <p>Wat je hiervan terugziet in het incident van 03:12, waarin de PSP-timeouts oplopen:</p>
+  <ol>
+    <li><b>Het dashboard toont geen fouten.</b> De counter loopt alleen op na een geslaagde capture. Het foutpercentage moet iemand afleiden uit een dalende lijn. Er is geen timer, dus ook geen latency-verdeling die laat zien dat de PSP net onder de 2 seconden zat voordat hij omviel.</li>
+    <li><b>De metric zelf is het probleem.</b> Met <code>customer</code> als tag is elke klant een eigen tijdreeks, maal elke PSP. In ons experiment gaven 50.000 captures over 20.000 klanten, met <code>psp</code> en <code>outcome</code> erbij, 50.000 meters in de registry, tegen 9 zonder klant-tag. Die meters blijven in het heap van elke pod staan tot de herstart, en de metrics-backend moet ze allemaal bijhouden.</li>
+    <li><b>De foutregel zegt niets.</b> <code>"Capture failed: Read timed out"</code>: welke betaling, welke merchant, welke PSP-foutcode? De exception staat er niet bij: een string met <code>e.getMessage()</code> is geen throwable, dus geen stacktrace en geen <code>cause</code>.</li>
+    <li><b>De stacktrace staat er wel, maar op een andere plek.</b> Na <code>throw e</code> vangt niemand de exception, dus logt Tomcat hem nog een keer, als <code>ERROR</code> met volledige stacktrace. In ons experiment had die tweede regel géén <code>traceId</code>: de observation-scope van de request is dan al gesloten. Je hebt dus één regel mét traceId en zonder stacktrace, en één regel mét stacktrace en zonder traceId. Koppelen kan alleen op tijdstip en thread-naam.</li>
+    <li><b>"Wij hebben geen notificatie gekregen."</b> <code>notifier.captured</code> draait op <code>pool-1-thread-3</code> zonder context. Zijn HTTP-call begint een nieuwe trace zonder parent, en als hij faalt, gaat de exception naar de standaard <code>UncaughtExceptionHandler</code>: een stacktrace op <code>stderr</code>, buiten je logformaat, zonder traceId. In de trace van de capture is de notificatie gewoon afwezig.</li>
+  </ol>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · Eén keer loggen, aan de grens, met context en exception</h4>
+      <p>Laat de service de exception gewoon doorgeven en log op één plek: de <code>@RestControllerAdvice</code> die er ook een <code>ProblemDetail</code> van maakt. Context gaat als velden mee (fluent API <code>addKeyValue</code>), de exception via <code>setCause</code> of als laatste argument. <b>Prijs:</b> de handler kent alleen wat in de exception zit; zet de ID's dus in de exception (of in de span) in plaats van ze in de catch te loggen. Loggen in de catch is prima zolang je daar <em>afhandelt</em> en niet opnieuw gooit.</p>
+    </div>
+    <div>
+      <h4>B · Meten met een Observation: lage cardinaliteit in de metric, hoge in de span</h4>
+      <p>Eén <code>Observation</code> levert een timer (met <code>error</code>-tag, dus foutpercentage en latency) én een span. <code>lowCardinalityKeyValue</code> komt in beide; <code>highCardinalityKeyValue</code> alleen in de span. De betaling-ID hoort daar. "Per klant" is een vraag voor je log- of trace-backend, niet voor Prometheus. <b>Prijs:</b> een andere metricnaam en vorm, dus dashboards en alerts moeten mee.</p>
+    </div>
+    <div>
+      <h4>C · Context doorgeven naar de andere thread</h4>
+      <p>Gebruik de executor van Boot en zet <code>spring.task.execution.propagate-context=true</code> (nieuw in Boot 4.1; daarvoor een <code>ContextPropagatingTaskDecorator</code>-bean, die Boot ook op die executor zet). Bij een eigen <code>ThreadPoolTaskExecutor</code>: <code>setTaskDecorator(new ContextPropagatingTaskDecorator())</code>. Bij een kale <code>ExecutorService</code>: <code>ContextExecutorService.wrap(...)</code>. <b>Prijs:</b> alleen geregistreerde <code>ThreadLocal</code>-accessors gaan mee (eigen MDC-sleutels niet), en een fire-and-forget-taak blijft fire-and-forget. Moet de notificatie echt aankomen, dan is een outbox (<a href="dual-write-en-outbox.html">module 3</a>) de fix, niet een executor.</p>
+    </div>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix · CaptureService.java</div>
+<pre><span class="d">-   private final ExecutorService webhooks = Executors.newFixedThreadPool(4);</span><span class="a">+   private final AsyncTaskExecutor webhooks;      // Boots applicationTaskExecutor, geïnjecteerd</span><span class="a">+   private final ObservationRegistry observations;</span><span></span><span>    public CaptureResult capture(CaptureCommand cmd) {</span><span>        var payment = payments.findById(cmd.paymentId())</span><span>                .orElseThrow(() -&gt; new PaymentNotFoundException(cmd.paymentId()));</span><span class="d">-       try {</span><span class="d">-           var result = psp.capture(payment.pspReference(), cmd.amount());</span><span class="d">-           meters.counter("payments.captured",</span><span class="d">-                   "psp", payment.psp(), "customer", payment.customerId()).increment();</span><span class="d">-           webhooks.execute(() -&gt; notifier.captured(payment, result));</span><span class="d">-           return result;</span><span class="d">-       } catch (PspException e) {</span><span class="d">-           log.error("Capture failed: " + e.getMessage());</span><span class="d">-           throw e;</span><span class="d">-       }</span><span class="a">+       var result = Observation.createNotStarted("payment.capture", observations)</span><span class="a">+               .lowCardinalityKeyValue("psp", payment.psp())                  // metric + span</span><span class="a">+               .highCardinalityKeyValue("payment.id", payment.id().toString()) // alleen span</span><span class="a">+               .observe(() -&gt; psp.capture(payment.pspReference(), cmd.amount()));</span><span class="a">+       webhooks.execute(() -&gt; notifier.captured(payment, result));</span><span class="a">+       return result;</span><span>    }</span></pre>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix · ApiExceptionHandler.java (nieuw)</div>
+<pre><span class="a">+@RestControllerAdvice</span><span class="a">+class ApiExceptionHandler {</span><span class="a">+</span><span class="a">+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);</span><span class="a">+</span><span class="a">+    @ExceptionHandler(PspException.class)</span><span class="a">+    ProblemDetail pspFailed(PspException e) {</span><span class="a">+        log.atError().setMessage("PSP call failed")</span><span class="a">+                .addKeyValue("pspReference", e.pspReference())</span><span class="a">+                .addKeyValue("pspErrorCode", e.errorCode())</span><span class="a">+                .setCause(e)</span><span class="a">+                .log();</span><span class="a">+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, "Betaalprovider niet beschikbaar");</span><span class="a">+    }</span><span class="a">+}</span></pre>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix · application.properties</div>
+<pre><span class="a">+# Boot 4.1+: ContextPropagatingTaskDecorator op de auto-geconfigureerde executor</span><span class="a">+spring.task.execution.propagate-context=true</span><span class="a">+# logregels als JSON, met MDC (traceId, spanId) en key-values als velden</span><span class="a">+logging.structured.format.console=logstash</span></pre>
+  </div>
+  <p>Met <code>logging.structured.format.console=logstash</code> (of <code>ecs</code>, <code>gelf</code>) wordt die ene foutregel in ons experiment één JSON-object met <code>traceId</code>, <code>spanId</code>, <code>pspReference</code> als eigen velden en de stacktrace in <code>stack_trace</code>. Tomcat logt niets meer, want de exception is afgehandeld. Zoeken op <code>pspReference</code> is dan een veldfilter, geen regex over berichttekst.</p>
+  <p>Over de exception als argument: SLF4J behandelt een <code>Throwable</code> alleen als exception als hij het <b>laatste</b> argument is. Staat hij ergens anders, dan wordt hij met <code>toString()</code> in het bericht geplakt, zonder stacktrace. Heeft het bericht een <code>{}</code> te veel, dan blijft die letterlijk staan maar komt de stacktrace wel mee. Alle drie nagespeeld met Logback 1.5.38.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Debug-logging op een hot path, met parameters.</b> <code>log.debug("Webhook {} genegeerd", ref)</code> kost met debug uit een niveaucheck, geen stringbouw. Is een argument duur om te berekenen, gebruik dan <code>log.atDebug().addArgument(() -&gt; duur())</code>: in ons experiment werd de supplier met debug uit 0 van de 1.000 keer aangeroepen. Alleen string-concatenatie en dure methode-aanroepen in de argumenten kosten altijd.</li>
+    <li><b>Een begrensde tag die op een ID lijkt.</b> <code>merchant</code> met 40 merchant-accounts die zelden groeien, <code>psp</code>, <code>currency</code>, <code>country</code>: prima. De vraag is niet "is het een ID?" maar "hoeveel waarden kan dit worden, en wie bepaalt dat?". Een waarde die een klant of een aanvaller kan kiezen (URL-pad, header, user-ID), is onbegrensd.</li>
+    <li><b>De betaling-ID op een span of in een logveld.</b> Dat is precies waar hij hoort. <code>highCardinalityKeyValue("payment.id", …)</code> ziet eruit als een cardinaliteitsprobleem, maar komt niet in de metric.</li>
+    <li><b>Loggen zonder stacktrace en dan doorgooien.</b> <code>log.info("PSP-timeout voor {}, poging 2 van 3", ref)</code> voegt context toe die de grens niet heeft. Het probleem van log-en-gooi is de dubbele <em>stacktrace</em> en de dubbele <code>ERROR</code>, niet elke regel in een catch.</li>
+    <li><b>Geen metric op een interne batchjob</b> die al eigen alerting heeft (de scheduler alarmeert bij een mislukte run, de job schrijft een statusrecord). Een extra counter voegt dan weinig toe.</li>
+    <li><b>Een taak die bewust een eigen trace begint</b>, zoals een nachtelijke reconciliatie die per run een eigen observation start. Daar is "geen parent" correct.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> bij tokens, kaartgegevens, IBAN of andere persoonsgegevens in een log (zie <a href="security-in-review.html">module 8</a>), en bij een onbegrensde tag op een metric die bij elke request of elk event wordt geraakt · <span class="sev major">major</span> bij een foutpad op een kritieke flow zonder exception of zonder ID's, trace-context die verdwijnt op een pad dat je in een incident moet volgen, en dubbele <code>ERROR</code>-stacktraces als alerts op aantallen foutregels tellen · <span class="sev minor">minor</span> bij een verkeerd niveau (<code>ERROR</code> voor een verwachte weigering) of context in de berichttekst in plaats van als veld · laat gaan bij stijl van het bericht en bij parameterized debug-logging.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Geen user-ID's in metrics graag, dat is slecht voor de cardinaliteit.</p><p style="color:var(--muted);font-size:14px">Klopt, maar het blijft abstract. De auteur wilde per klant kunnen kijken; zonder alternatief voor die wens komt dezelfde tag in de volgende PR terug.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>customer</code> als tag op <code>payments.captured</code> maakt van elke klant een eigen tijdreeks, maal elke <code>psp</code>-waarde. Bij 200.000 actieve klanten zijn dat honderdduizenden reeksen die elke pod tot de herstart in het heap houdt en die de metrics-backend moet bijhouden.</p><p><b>Gevolg:</b> trage of falende queries op het capture-dashboard, juist tijdens een incident, en een flinke rekening van de backend.</p><p><b>Voorstel:</b> een <code>Observation</code> met <code>psp</code> als low-cardinality en de betaling-ID als high-cardinality key-value: je krijgt een timer met foutpercentage en latency, en de span bevat de ID. Wil je per klant kunnen zoeken: welke vraag moet dat beantwoorden? Dat kan in de logs, met <code>customerId</code> als veld.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: de PSP stuurt webhooks <em>at-least-once</em>; bij een timeout of een niet-2xx-response stuurt hij hetzelfde event later opnieuw. De body bevat onder meer <code>shopperEmail</code>, <code>shopperName</code> en, bij refunds naar een bankrekening, de <code>iban</code>. <code>markSettled</code> zet status en bedrag en gooit niets bij een tweede aanroep. <code>LedgerClient.postRefund</code> is een HTTP-call naar het grootboek die per aanroep een boeking maakt. De app draait op Boot 4.1 met Micrometer Tracing, OpenTelemetry en <code>spring.task.execution.propagate-context=true</code>.</p>
+  <div class="diff">
+    <div class="diff-head">PR #634 · Refund-webhooks van de PSP verwerken, grootboek bijwerken en meten</div>
+<pre><span><span class="ln">1</span>@RestController</span><span><span class="ln">2</span>@RequestMapping("/webhooks/psp")</span><span><span class="ln">3</span>public class PspWebhookController {</span><span><span class="ln">4</span></span><span><span class="ln">5</span>    private static final Logger log = LoggerFactory.getLogger(PspWebhookController.class);</span><span><span class="ln">6</span></span><span><span class="ln">7</span>    private final WebhookVerifier verifier;</span><span><span class="ln">8</span>    private final RefundRepository refunds;</span><span><span class="ln">9</span>    private final LedgerClient ledger;</span><span><span class="ln">10</span>    private final MeterRegistry meters;</span><span><span class="ln">11</span>    private final ObservationRegistry observations;</span><span><span class="ln">12</span></span><span><span class="ln">13</span>    public PspWebhookController(WebhookVerifier verifier, RefundRepository refunds, LedgerClient ledger,</span><span><span class="ln">14</span>                                MeterRegistry meters, ObservationRegistry observations) {</span><span><span class="ln">15</span>        this.verifier = verifier;</span><span><span class="ln">16</span>        this.refunds = refunds;</span><span><span class="ln">17</span>        this.ledger = ledger;</span><span><span class="ln">18</span>        this.meters = meters;</span><span><span class="ln">19</span>        this.observations = observations;</span><span><span class="ln">20</span>    }</span><span><span class="ln">21</span></span><span><span class="ln">22</span>    @PostMapping</span><span><span class="ln">23</span>    public ResponseEntity&lt;Void&gt; receive(@RequestHeader("X-Psp-Signature") String signature,</span><span><span class="ln">24</span>                                        @RequestBody String body) {</span><span><span class="ln">25</span>        log.info("PSP webhook ontvangen: {}", body);</span><span><span class="ln">26</span>        WebhookEvent event = verifier.verifyAndParse(signature, body);</span><span><span class="ln">27</span></span><span><span class="ln">28</span>        return Observation.createNotStarted("psp.webhook", observations)</span><span><span class="ln">29</span>                .lowCardinalityKeyValue("event.code", event.code().name())</span><span><span class="ln">30</span>                .highCardinalityKeyValue("psp.reference", event.pspReference())</span><span><span class="ln">31</span>                .observe(() -&gt; handle(event));</span><span><span class="ln">32</span>    }</span><span><span class="ln">33</span></span><span><span class="ln">34</span>    private ResponseEntity&lt;Void&gt; handle(WebhookEvent event) {</span><span><span class="ln">35</span>        if (event.code() != EventCode.REFUND) {</span><span><span class="ln">36</span>            log.debug("Webhook {} met code {} genegeerd", event.pspReference(), event.code());</span><span><span class="ln">37</span>            return ResponseEntity.accepted().build();</span><span><span class="ln">38</span>        }</span><span><span class="ln">39</span>        Refund refund = refunds.findByPspReference(event.pspReference())</span><span><span class="ln">40</span>                .orElseThrow(() -&gt; new UnknownRefundException(event.pspReference()));</span><span><span class="ln">41</span>        refund.markSettled(event.amount(), event.eventDate());</span><span><span class="ln">42</span>        refunds.save(refund);</span><span><span class="ln">43</span></span><span><span class="ln">44</span>        CompletableFuture.runAsync(() -&gt; ledger.postRefund(refund.getId(), event.amount()));</span><span><span class="ln">45</span></span><span><span class="ln">46</span>        meters.counter("psp.refund.settled",</span><span><span class="ln">47</span>                "merchant", event.merchantAccount(),</span><span><span class="ln">48</span>                "pspReference", event.pspReference()).increment();</span><span><span class="ln">49</span>        return ResponseEntity.accepted().build();</span><span><span class="ln">50</span>    }</span><span><span class="ln">51</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regel 25</b> <span class="sev blocker">blocker</span> De volledige webhook-body gaat op <code>INFO</code> de log in: e-mailadres, naam en IBAN van de klant, bij elke webhook. Logs worden breed gelezen, lang bewaard en vaak naar een externe partij gestuurd. Dat is een AVG-probleem en hoort bij <a href="security-in-review.html">module 8</a> (gevoelige data in logs). Bovendien gebeurt het vóór de handtekeningcheck op regel 26, dus ook willekeurige ongeverifieerde input komt in je log. Voorstel: na de verificatie alleen <code>event.code</code>, <code>pspReference</code> en <code>merchantAccount</code> loggen, als velden; de volledige payload hooguit versleuteld in een eigen tabel als je hem voor support nodig hebt.</p>
+      <p><b>Regels 46–48</b> <span class="sev blocker">blocker</span> <code>pspReference</code> als metric-tag: elke refund is een nieuwe tijdreeks, die tot de herstart van de pod blijft bestaan. Bij tienduizenden refunds per dag groeit dit onbegrensd, zie het experiment hierboven (50.000 waarden, 50.000 meters). Wrang: op regel 30 staat dezelfde waarde wél goed, als high-cardinality key-value van de observation. Voorstel: de counter schrappen; de observation op regel 28 levert al een timer per <code>event.code</code> met <code>error</code>-tag. Over <code>merchant</code> (regel 47) een <b>vraag</b>: hoeveel merchant-accounts zijn er en groeit dat mee met de klantenbasis? Bij tientallen is het een prima tag, bij tienduizenden niet.</p>
+      <p><b>Regel 44</b> <span class="sev major">major</span> <code>CompletableFuture.runAsync</code> zonder executor draait op de <code>ForkJoinPool.commonPool()</code>. Drie gevolgen. (1) Trace-context weg: <code>propagate-context=true</code> geldt alleen voor de executor die Boot configureert, niet voor de common pool. De grootboek-call wordt een losse trace en zijn logregels hebben geen traceId. (2) Niemand doet iets met de future, dus een exception van <code>postRefund</code> wordt opgeslagen in de future en verder door niemand gezien: geen log, geen metric. In ons experiment werd de <code>UncaughtExceptionHandler</code> niet aangeroepen. Een refund die niet in het grootboek komt, merk je pas bij de maandafsluiting. (3) Blokkerende I/O op de common pool, die ook parallel streams bedient (<a href="concurrency-in-singletons.html">module 4</a>, <a href="streams-lezen-en-schrijven.html">F1</a>). Voorstel: dit is geen observability-fix maar een betrouwbaarheidsfix. Schrijf de boeking als outbox-record in dezelfde transactie als <code>markSettled</code> (<a href="dual-write-en-outbox.html">module 3</a>), met de refund-ID als idempotency key.</p>
+      <p><b>Regels 39–44</b> <span class="sev blocker">blocker</span> <i>Uit <a href="dual-write-en-outbox.html">module 3</a>.</i> De webhook komt at-least-once. Bij een tweede levering van hetzelfde event is <code>markSettled</code> onschuldig, maar <code>postRefund</code> maakt een tweede boeking: de refund staat dubbel in het grootboek. Voorstel: dedupliceren op <code>pspReference</code> + <code>eventCode</code> (unieke constraint op een tabel met verwerkte webhooks, of eerst <code>refund.isSettled()</code> controleren in dezelfde transactie) en de boeking idempotent maken met de refund-ID als sleutel.</p>
+      <p><b>Regel 30</b> <span class="sev ok">geen probleem</span> De afleider: een unieke ID als key-value op een observation. Omdat het <code>highCardinalityKeyValue</code> is, komt hij alleen op de span en niet in de timer; in ons experiment gaven 1.000 observations met verschillende ID's 4 meters, allemaal zonder ID-tag. Dat is precies waar de ID hoort. Regel 29 (<code>event.code</code>, een enum) is een terechte low-cardinality tag, en regel 36 is parameterized debug-logging: met debug uit kost hij een niveaucheck.</p>
+      <p><b>Bonus</b> <span class="sev minor">vraag</span> Een webhook voor een onbekende refund (regel 40) wordt een 500. De PSP probeert het dan opnieuw, mogelijk dagenlang, en elke poging is een <code>ERROR</code> met stacktrace. Is dat de bedoeling, of moet dit een <code>202</code> met een <code>WARN</code> en een metric worden?</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · voorspellen</span></div>
+      <p class="situ">Twee varianten van dezelfde foutregel in een catch-blok. <code>e</code> is een <code>PspException</code> met een <code>SocketTimeoutException</code> als cause.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A</p>
+<pre class="snip">log.error("Capture failed for payment {}",
+        paymentId, e);</pre></div>
+        <div><p class="snip-label">B</p>
+<pre class="snip">log.error("Capture failed for payment {}",
+        e, paymentId);</pre></div>
+      </div>
+      <p class="ask">In welke variant vind je in een incident de <code>SocketTimeoutException</code> terug?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Alleen in A.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>SLF4J behandelt een <code>Throwable</code> alleen als exception als hij het laatste argument is. In A komt de stacktrace mee, inclusief <code>Caused by: SocketTimeoutException</code>.</li>
+          <li>In B vult <code>e</code> de placeholder: het bericht wordt <code>Capture failed for payment com.acme.PspException: …</code> en <code>paymentId</code> is een ongebruikt argument. Geen stacktrace, geen cause, geen betaling-ID.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <ul><li>Dit ziet er in een diff bijna hetzelfde uit. Kijk bij elke <code>log.error</code>/<code>log.warn</code> in een catch of de exception het laatste argument is, of gebruik de fluent API met <code>setCause(e)</code>, waar de volgorde niet uitmaakt.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · inschatten</span></div>
+      <p class="situ">Geen enkele tag is een ID; elke tag heeft een vaste, kleine set waarden.</p>
+<pre class="snip">Timer.builder("payment.authorize")
+    .tag("psp", psp)              //   4 waarden
+    .tag("outcome", outcome)      //   6 waarden
+    .tag("currency", currency)    //  30 waarden
+    .tag("country", cardCountry)  // 190 waarden
+    .register(meters)
+    .record(duration);</pre>
+      <p class="ask">Heeft deze timer een cardinaliteitsprobleem?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Mogelijk wel: de cardinaliteit is het product van de tags, niet het maximum.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>4 × 6 × 30 × 190 = 136.800 mogelijke combinaties. In de praktijk komen niet alle combinaties voor, maar met kaarten uit de hele wereld en meerdere valuta zit je al snel op tienduizenden.</li>
+          <li>Een timer is in Prometheus bovendien meer dan één reeks (<code>_count</code>, <code>_sum</code>, <code>_max</code>, plus buckets als histogrammen aan staan). Vermenigvuldig dus nog een keer.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>question:</b> welke vraag beantwoordt <code>country</code> op deze timer? Samen met <code>currency</code> en <code>outcome</code> kan dit tienduizenden reeksen worden. Als het om een fraudeanalyse per land gaat, past dat beter in de logs of in een aparte counter met alleen <code>country</code> en <code>outcome</code>.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">Boot 4.1 met Micrometer Tracing en <code>spring.task.execution.propagate-context=true</code>. Beide methoden worden aangeroepen vanuit een HTTP-request met traceId <code>4bf9…</code> en loggen <code>"Notifying merchant"</code>.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · @Async</p>
+<pre class="snip">@Async
+public void notifyMerchant(Payment p) {
+    log.info("Notifying merchant");
+    client.post(p);
+}</pre></div>
+        <div><p class="snip-label">B · eigen executor</p>
+<pre class="snip">private final ExecutorService exec =
+    Executors.newVirtualThreadPerTaskExecutor();
+
+public void notifyMerchant(Payment p) {
+    exec.submit(() -&gt; {
+        log.info("Notifying merchant");
+        client.post(p);
+    });
+}</pre></div>
+      </div>
+      <p class="ask">In welke logregel staat <code>4bf9…</code>?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Alleen in A.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De property zet een <code>ContextPropagatingTaskDecorator</code> op de executor die Boot zelf bouwt, en <code>@Async</code> gebruikt die executor.</li>
+          <li>B maakt een eigen executor die Boot niet kent. Virtual threads beginnen net als platform-threads met een lege context: de logregel heeft geen traceId en <code>client.post</code> begint een nieuwe trace.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Zonder de property had ook A geen traceId gehad: in Boot moet je hier expliciet voor kiezen. Vóór Boot 4.1 doe je dat met een eigen <code>ContextPropagatingTaskDecorator</code>-bean.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · kiezen</span></div>
+      <p class="situ">Een filter zet aan het begin van elke request <code>MDC.put("merchantId", …)</code>. Een collega zet daarna <code>propagate-context=true</code> aan en verwacht nu <code>merchantId</code> ook in de logregels van <code>@Async</code>-methoden.</p>
+      <p class="ask">Krijgt hij dat, en wat stel je voor?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee: <code>traceId</code> en <code>spanId</code> komen mee, <code>merchantId</code> niet.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De decorator neemt alleen <code>ThreadLocal</code>-waarden mee waarvoor een accessor geregistreerd is. Voor de observation is dat standaard zo; de tracing-bridge zet bij het herstellen van de scope <code>traceId</code>/<code>spanId</code> weer in de MDC.</li>
+          <li>Een eigen MDC-sleutel heeft geen accessor. In ons experiment kwam hij pas mee na <code>ContextRegistry.getInstance().registerThreadLocalAccessor(new Slf4jThreadLocalAccessor("merchantId"))</code>.</li>
+        </ul>
+        <p class="a-lbl">De keuze</p>
+        <ul>
+          <li>Registreer de accessor met expliciete sleutels als het om een handvol vaste velden gaat.</li>
+          <li>Of zet de merchant op de span (key-value of baggage), zodat hij ook over servicegrenzen meegaat in plaats van alleen binnen dit proces.</li>
+          <li>Ruim de MDC in het filter op in een <code>finally</code>. Een pooled thread die de MDC niet opruimt, geeft hem door aan de volgende request: in ons experiment zag de tweede taak op dezelfde thread de waarde van de eerste.</li>
+        </ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">In een refund-service, zonder <code>@ExceptionHandler</code> voor deze exception. Alerts tellen het aantal <code>ERROR</code>-regels per minuut.</p>
+<pre class="snip">} catch (PspTimeoutException e) {
+    log.error("Refund {} failed at PSP", refundId, e);
+    throw e;
+}</pre>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev major">major</span>: elke fout telt dubbel in de alerting, en de tweede stacktrace is niet aan de request te koppelen.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>De regel zelf is goed: ID, exception als laatste argument. Maar na <code>throw e</code> logt Tomcat dezelfde exception nog een keer als <code>ERROR</code>, zonder traceId omdat de request-scope dan al dicht is.</li>
+          <li>Omdat alerts op het aantal <code>ERROR</code>-regels tellen, verdubbelt elke fout en schuiven de drempels ongemerkt op. Zonder die alerting was het een <span class="sev minor">minor</span>: alleen ruis.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> deze exception wordt hier gelogd en daarna nog een keer door Tomcat (niemand handelt hem af), dus elke PSP-timeout geeft twee <code>ERROR</code>-regels met stacktrace, en de tweede heeft geen traceId. Voorstel: hier niet loggen maar een <code>@ExceptionHandler</code> die één keer logt met <code>refundId</code> als veld en een <code>ProblemDetail</code> teruggeeft. Wil je hier context toevoegen, log dan op <code>INFO</code> zonder stacktrace.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Spring Boot Reference, Logging › <a href="https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.structured">Structured Logging</a>: <code>logging.structured.format.console</code>, de formaten <code>ecs</code>, <code>gelf</code> en <code>logstash</code>, en hoe MDC en <code>addKeyValue</code> in de JSON terechtkomen.</li>
+    <li>Spring Boot Reference, Actuator › <a href="https://docs.spring.io/spring-boot/reference/actuator/observability.html">Observability</a>: low- vs high-cardinality key-values en de sectie "Context Propagation" over <code>@Async</code>, <code>spring.task.execution.propagate-context</code> en <code>ContextPropagatingTaskDecorator</code>.</li>
+    <li>Spring Boot Reference, Actuator › <a href="https://docs.spring.io/spring-boot/reference/actuator/tracing.html">Tracing</a>: de secties "Logging Correlation IDs", "Propagating Traces" en "Sampling", plus <code>spring-boot-starter-opentelemetry</code>.</li>
+    <li>Micrometer Reference, Concepts › <a href="https://docs.micrometer.io/micrometer/reference/concepts/naming.html">Naming Meters</a>: de sectie "Tag Values", over door gebruikers aangeleverde waarden die de cardinaliteit opblazen. Over de exception als laatste argument: de <a href="https://www.slf4j.org/faq.html#paramException">SLF4J FAQ</a>.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

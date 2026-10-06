@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gatherers: eigen tussenstappen in een stream · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module kies je tussen loop, collector, ingebouwde en eigen gatherer voor logica met state, beoordeel je een eigen Gatherer op initializer, finisher, greedy en combiner, en weeg je mapConcurrent af tegen parallelStream bij I/O.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;min-width:0}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+.fixes .snip{margin-top:8px}
+
+.tbl-wrap{margin-top:16px;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.tbl{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th,.tbl td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="gatherers-en-geavanceerde-streams">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module F5 · D1 Modern Java · verdieping</p>
+  <h1>Gatherers: eigen tussenstappen in een stream</h1>
+  <p class="lede">Een gatherer is een tussenstap in een stream die state bijhoudt. Daarmee schrijf je batches, vensters, lopende saldi en begrensde PSP-calls in één regel. Maar een vergeten finisher betekent dat de laatste 93 merchants hun uitbetaling niet krijgen, en er verschijnt nergens een foutmelding.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 (alle gedrag gedraaid op JDK 25.0.4)</span><span><b>Bouwt op</b> <a href="streams-lezen-en-schrijven.html">F1</a> · <a href="lambdas-en-functies.html">F2</a> · <a href="concurrency-in-singletons.html">4</a></span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Voor logica met state (batchen, vensters, lopende stand, vroeg stoppen) <b>kiezen en verdedigen</b> tussen een loop, een collector, een ingebouwde gatherer (<code>windowFixed</code>, <code>windowSliding</code>, <code>scan</code>, <code>fold</code>) en een eigen gatherer. Je kunt ook zeggen wanneer je géén gatherer wilt.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span>Een eigen <code>Gatherer</code> <b>beoordelen</b> aan de hand van vier onderdelen: state alleen via de initializer, een finisher die de rest doorgeeft, de return-waarde van de integrator (en <code>ofGreedy</code> alleen als hij nooit stopt), en een combiner of bewust sequentieel.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span><code>Gatherers.mapConcurrent</code> <b>beoordelen</b> als vervanging voor <code>parallelStream()</code> bij I/O. Het gaat om de grens, volgorde en head-of-line blocking, exceptions en annulering, en om wat er níet meegaat naar de virtual threads (<code>ThreadLocal</code>, de transactie).</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>De <b>zwaarte inschatten</b> van een gatherer-bevinding (geld dat niet verstuurd wordt, een PSP die je platlegt, of alleen leesbaarheid), en er een comment over schrijven met gevolg en voorstel.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Wat geeft <code>Stream.of(1, 2).gather(Gatherers.windowSliding(3)).toList()</code>? Niets, <code>[[1, 2]]</code>, of een exception?</li>
+      <li>Je zet <code>scan(() -&gt; 20, Integer::sum)</code> op drie boekingen. Hoeveel elementen komen eruit, en zit de beginwaarde 20 erbij? En hoe zit dat bij <code>fold</code>?</li>
+      <li>Een <code>@Transactional</code>-methode roept in de functie van <code>mapConcurrent</code> <code>repository.save(...)</code> aan. In welke transactie gebeurt die save?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Je kent <code>Collector</code> uit <a href="streams-lezen-en-schrijven.html">F1</a>. Een collector is de <em>terminale</em> stap: veel elementen gaan erin en er komt één resultaat uit. Een <code>Gatherer</code> (definitief sinds JDK 24, JEP 485) is een <em>tussenstap</em>. Hij krijgt elementen één voor één, houdt state bij, geeft nul, één of meer elementen door aan de volgende stap, en kan de stream vroeg laten stoppen. Je gebruikt hem via <code>stream.gather(g)</code>, waarna de stream gewoon verdergaat met <code>map</code>, <code>filter</code> of <code>forEach</code>.</p>
+  <p>Een gatherer bestaat uit vier functies. Je moet ze alle vier kunnen lezen, want elke fout in een eigen gatherer zit in één ervan:</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Onderdeel</th><th>Wanneer aangeroepen</th><th>Wat er misgaat als het ontbreekt of fout is</th></tr></thead>
+    <tbody>
+      <tr><td><code>initializer</code></td><td>Eén keer per evaluatie van de stream, en bij parallel per deel</td><td>State die je in de factory-methode aanmaakt in plaats van hier, wordt gedeeld door alle streams die deze gatherer-instantie gebruiken.</td></tr>
+      <tr><td><code>integrator</code></td><td>Per element: <code>integrate(state, element, downstream)</code>. Geeft een <code>boolean</code> terug.</td><td><code>false</code> betekent "ik wil niets meer", en de stream stopt. <code>downstream.push(x)</code> geeft zelf <code>false</code> als de rest van de pijplijn niets meer wil (bijv. na <code>limit</code>).</td></tr>
+      <tr><td><code>combiner</code></td><td>Alleen bij parallelle evaluatie, om de state van twee delen samen te voegen</td><td>Geen combiner (<code>defaultCombiner()</code>) betekent dat deze stap alleen sequentieel draait. Volgens de Javadoc is dat bedoeld gedrag, geen bug.</td></tr>
+      <tr><td><code>finisher</code></td><td>Eén keer aan het eind: <code>finish(state, downstream)</code></td><td>Wat nog in de state zit (de halfvolle batch, het laatste venster), komt zonder finisher nooit naar buiten.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Dan het punt waar de meeste reviewers niet op letten: <b>sequentieel is niet hetzelfde als traag, maar <code>ofGreedy</code> maakt wél verschil.</b> Alle vijf ingebouwde gatherers hebben de <code>defaultCombiner()</code> (nagespeeld), dus ze draaien sequentieel, ook in een <code>parallelStream()</code>. De stappen ervoor en erna kunnen toch parallel blijven, "zoals <code>parallel().forEachOrdered()</code>" (JEP 485). Dat lukt alleen als de integrator <em>greedy</em> is, dus belooft nooit zelf te stoppen. Gemeten met 800 elementen en een upstream-<code>map</code> van 2 ms per element, in een parallelle stream:</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Tussenstap</th><th>Threads upstream</th><th>Tijd</th></tr></thead>
+    <tbody>
+      <tr><td><code>Gatherer.ofSequential(integrator)</code>, niet greedy</td><td>1</td><td>2.715–2.921 ms</td></tr>
+      <tr><td><code>Gatherer.ofSequential(Integrator.ofGreedy(…))</code></td><td>8</td><td>~600 ms</td></tr>
+      <tr><td><code>Gatherers.windowFixed(100)</code> (ingebouwd, greedy)</td><td>8</td><td>~300 ms (zonder downstream-<code>map</code>)</td></tr>
+      <tr><td>Geen gatherer</td><td>8</td><td>577 ms</td></tr>
+    </tbody>
+  </table></div>
+  <p>De keerzijde: <code>ofGreedy</code> is een belofte, en geen controle. Een greedy integrator die toch <code>false</code> teruggeeft, wordt genegeerd. In onze run gaf een integrator die bij element 3 wilde stoppen <code>[1, 2, 3, 4, 5, 6]</code> met <code>ofGreedy</code> en <code>[1, 2, 3]</code> zonder.</p>
+
+  <h3>De vijf ingebouwde gatherers, met de randgevallen</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Gatherer</th><th>Wat eruit komt</th><th>Nagespeeld randgeval</th></tr></thead>
+    <tbody>
+      <tr><td><code>windowFixed(n)</code></td><td>Lijsten van <code>n</code> elementen</td><td>1.234 elementen, <code>n</code> = 500: <code>[500, 500, 234]</code>. De laatste, kortere batch komt er wél uit. Lege stream: geen venster. Vensters zijn onwijzigbaar (<code>add</code> gooit UOE).</td></tr>
+      <tr><td><code>windowSliding(n)</code></td><td>Overlappende vensters van <code>n</code></td><td><code>[1..5]</code>, <code>n</code> = 3: <code>[[1,2,3], [2,3,4], [3,4,5]]</code>. <b>Minder dan <code>n</code> elementen geeft één kórter venster:</b> <code>[1, 2]</code> met <code>n</code> = 3 levert <code>[[1, 2]]</code>.</td></tr>
+      <tr><td><code>scan(init, f)</code></td><td>Elke tussenstand, zonder <code>init</code> zelf</td><td>Begin 20,00, boekingen <code>[100, −130, 50]</code>: <code>[120.00, -10.00, 40.00]</code>. Lege stream: <code>[]</code>.</td></tr>
+      <tr><td><code>fold(init, f)</code></td><td>Precies één element</td><td>Zelfde invoer: <code>[40.00]</code>. Lege stream: <code>[0]</code>, dus de beginwaarde.</td></tr>
+      <tr><td><code>mapConcurrent(n, f)</code></td><td><code>f</code> per element op een virtual thread, met maximaal <code>n</code> tegelijk en de uitvoer in bronvolgorde</td><td>Zie paneel B en de tabel verderop. <code>n</code> = 0 gooit <code>IllegalArgumentException</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <figure>
+    <svg viewBox="0 0 400 580" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee panelen. A: vijf uitbetalingen gaan een gatherer in. De initializer maakt één open batch als state. De integrator voegt elke uitbetaling toe en pusht batch B1 zodra die vol is. Aan het eind pusht de finisher de rest als B2; zonder finisher wordt B2 nooit verstuurd. B: een tijdlijn van mapConcurrent met grens 4. Call 0 duurt 2 seconden, calls 1 tot 3 zijn na 0,2 seconden klaar maar wachten. Calls 4 tot 7 starten pas als call 0 klaar is, omdat de uitvoer in volgorde moet. Alles komt in bronvolgorde naar buiten.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="arr-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--blocker)"/></marker>
+        <marker id="arr-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+      </defs>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--accent)">A · een eigen gatherer: batches van 3</text>
+      <text x="0" y="38" font-size="11" class="mono" style="fill:var(--muted)">initializer → integrator per element → finisher</text>
+
+      <rect x="140" y="52" width="120" height="28" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="200" y="70" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">state: open batch</text>
+      <text x="270" y="62" font-size="11" style="fill:var(--muted)">uit initializer,</text>
+      <text x="270" y="76" font-size="11" style="fill:var(--muted)">per stream nieuw</text>
+      <line x1="200" y1="80" x2="200" y2="96" style="stroke:currentColor" marker-end="url(#arr)"/>
+
+      <text x="0" y="112" font-size="12" class="mono" style="fill:currentColor">p1 p2 p3</text>
+      <text x="0" y="134" font-size="12" class="mono" style="fill:currentColor">p4 p5</text>
+      <line x1="72" y1="118" x2="126" y2="118" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="128" y="98" width="144" height="42" rx="4" style="fill:var(--surface);stroke:currentColor;stroke-width:1.5"/>
+      <text x="200" y="116" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">integrator</text>
+      <text x="200" y="132" font-size="11" text-anchor="middle" class="mono" style="fill:var(--muted)">(state, p, down)</text>
+      <line x1="272" y1="118" x2="300" y2="118" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="304" y="114" font-size="12" class="mono" style="fill:currentColor">push(B1)</text>
+      <text x="304" y="130" font-size="11" style="fill:var(--muted)">[p1, p2, p3]</text>
+      <text x="200" y="158" font-size="11" text-anchor="middle" style="fill:var(--muted)">return false → stream stopt</text>
+
+      <line x1="200" y1="164" x2="200" y2="180" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="128" y="182" width="144" height="34" rx="4" style="fill:var(--surface);stroke:var(--ok);stroke-width:2"/>
+      <text x="200" y="204" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">finisher</text>
+      <line x1="272" y1="199" x2="300" y2="199" style="stroke:var(--ok);stroke-width:2" marker-end="url(#arr-ok)"/>
+      <text x="304" y="196" font-size="12" class="mono" style="fill:var(--ok)">push(B2)</text>
+      <text x="304" y="212" font-size="11" style="fill:var(--ok)">[p4, p5]</text>
+      <text x="0" y="244" font-size="12" style="fill:var(--blocker)">Zonder finisher: B2 blijft in de state en wordt nooit</text>
+      <text x="0" y="260" font-size="12" style="fill:var(--blocker)">verstuurd. Geen exception, alleen minder uitbetalingen.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="306" font-size="15" font-weight="600" style="fill:var(--accent)">B · mapConcurrent(4): uit in volgorde</text>
+      <text x="0" y="328" font-size="11" class="mono" style="fill:var(--muted)">call #0 duurt 2 s, alle andere 0,2 s</text>
+
+      <!-- tijdsas: x = 70 + t(ms) * 0.14 -->
+      <text x="0" y="356" font-size="12" class="mono" style="fill:currentColor">#0</text>
+      <rect x="70" y="345" width="280" height="14" rx="3" style="fill:var(--major);opacity:.85"/>
+      <text x="0" y="378" font-size="12" class="mono" style="fill:currentColor">#1</text>
+      <rect x="70" y="367" width="28" height="14" rx="3" style="fill:var(--accent)"/>
+      <line x1="98" y1="374" x2="350" y2="374" style="stroke:var(--muted);stroke-dasharray:3 4"/>
+      <text x="0" y="400" font-size="12" class="mono" style="fill:currentColor">#2</text>
+      <rect x="70" y="389" width="28" height="14" rx="3" style="fill:var(--accent)"/>
+      <line x1="98" y1="396" x2="350" y2="396" style="stroke:var(--muted);stroke-dasharray:3 4"/>
+      <text x="0" y="422" font-size="12" class="mono" style="fill:currentColor">#3</text>
+      <rect x="70" y="411" width="28" height="14" rx="3" style="fill:var(--accent)"/>
+      <line x1="98" y1="418" x2="350" y2="418" style="stroke:var(--muted);stroke-dasharray:3 4"/>
+      <rect x="160" y="388" width="110" height="18" style="fill:var(--surface)"/>
+      <text x="215" y="401" font-size="11" text-anchor="middle" style="fill:var(--muted)">klaar, wacht op #0</text>
+      <text x="0" y="444" font-size="12" class="mono" style="fill:currentColor">#4–#7</text>
+      <line x1="70" y1="440" x2="350" y2="440" style="stroke:var(--blocker);stroke-dasharray:3 4"/>
+      <rect x="140" y="431" width="140" height="18" style="fill:var(--surface)"/>
+      <text x="210" y="444" font-size="11" text-anchor="middle" style="fill:var(--blocker)">mag nog niet starten</text>
+      <rect x="350" y="433" width="28" height="14" rx="3" style="fill:var(--accent)"/>
+
+      <line x1="70" y1="462" x2="384" y2="462" style="stroke:currentColor"/>
+      <line x1="70" y1="458" x2="70" y2="466" style="stroke:currentColor"/>
+      <line x1="210" y1="458" x2="210" y2="466" style="stroke:currentColor"/>
+      <line x1="350" y1="458" x2="350" y2="466" style="stroke:currentColor"/>
+      <text x="70" y="480" font-size="11" text-anchor="middle" class="mono" style="fill:var(--muted)">0</text>
+      <text x="210" y="480" font-size="11" text-anchor="middle" class="mono" style="fill:var(--muted)">1 s</text>
+      <text x="350" y="480" font-size="11" text-anchor="middle" class="mono" style="fill:var(--muted)">2 s</text>
+
+      <text x="0" y="508" font-size="12" style="fill:currentColor">Uit in volgorde: #0–#3 op 2,0 s, #4–#7 op 2,2 s.</text>
+      <text x="0" y="530" font-size="12" style="fill:var(--blocker)">Eén trage call zonder timeout zet het hele venster stil.</text>
+      <text x="0" y="552" font-size="12" style="fill:var(--muted)">Gemeten: eerste uitvoer na 2.007 ms; tot dan waren er</text>
+      <text x="0" y="570" font-size="12" style="fill:var(--muted)">precies 4 calls gestart. Totaal 2,2 s voor 40 calls.</text>
+    </svg>
+    <figcaption>A: de state hoort bij één evaluatie van de stream en komt uit de initializer. De integrator geeft volle batches door, en de finisher geeft de rest door. B: <code>mapConcurrent</code> start nooit meer dan <code>n</code> calls die nog niet naar buiten zijn. Een trage call vooraan houdt dus ook de calls achter zich tegen, en daarom hoort er een timeout op de client.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Geverifieerd:</b> alle signaturen in deze module komen uit <code>javap java.util.stream.Gatherers</code> en <code>javap java.util.stream.Gatherer</code> op JDK 25.0.4. Elke uitkomst die je hier leest, is gedraaid met een trace in de lambda's. Let op een asymmetrie in de API: <code>ofSequential</code> heeft een variant met alleen initializer en integrator, maar <code>Gatherer.of</code> met een initializer bestaat alleen met vier argumenten (initializer, integrator, combiner, finisher). Wie parallel wil, moet dus nadenken over het samenvoegen.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>De bank accepteert uitbetalingsopdrachten in batches van maximaal 500 opdrachten én maximaal € 1.000.000 per batch. Tot nu toe stuurde <code>PayoutRun</code> alles in één keer, en de bank begint dat te weigeren. De auteur schrijft een herbruikbare gatherer, "zodat andere runs hem ook kunnen gebruiken". De unit-test met 1.000 uitbetalingen van € 10 geeft twee batches van 500 en is groen.</p>
+  <div class="diff">
+    <div class="diff-head">PayoutGatherers.java (nieuw) · PayoutRun.java</div>
+<pre><span class="a">+public final class PayoutGatherers {</span><span class="a">+</span><span class="a">+    private PayoutGatherers() {}</span><span class="a">+</span><span class="a">+    /** De bank accepteert max 500 opdrachten en max € 1.000.000 per batch. */</span><span class="a">+    public static Gatherer&lt;Payout, ?, PayoutBatch&gt; bankBatches(int maxCount, BigDecimal maxTotal) {</span><span class="a">+        List&lt;Payout&gt; buffer = new ArrayList&lt;&gt;();</span><span class="a">+        BigDecimal[] total = { BigDecimal.ZERO };</span><span class="a">+        return Gatherer.ofSequential((unused, payout, downstream) -&gt; {</span><span class="a">+            if (buffer.size() == maxCount</span><span class="a">+                    || total[0].add(payout.amount()).compareTo(maxTotal) &gt; 0) {</span><span class="a">+                downstream.push(new PayoutBatch(List.copyOf(buffer)));</span><span class="a">+                buffer.clear();</span><span class="a">+                total[0] = BigDecimal.ZERO;</span><span class="a">+            }</span><span class="a">+            buffer.add(payout);</span><span class="a">+            total[0] = total[0].add(payout.amount());</span><span class="a">+            return true;</span><span class="a">+        });</span><span class="a">+    }</span><span class="a">+}</span><span></span><span>@Service</span><span>public class PayoutRun {</span><span class="a">+    private static final Gatherer&lt;Payout, ?, PayoutBatch&gt; BANK_BATCHES =</span><span class="a">+            PayoutGatherers.bankBatches(500, new BigDecimal("1000000"));</span><span>    // velden en constructor weggelaten</span><span></span><span>    public void run(LocalDate day) {</span><span class="d">-        bank.submitAll(payouts.findDueOn(day));</span><span class="a">+        payouts.findDueOn(day).stream()</span><span class="a">+                .gather(BANK_BATCHES)</span><span class="a">+                .forEach(bank::submit);</span><span>    }</span><span>}</span></pre>
+  </div>
+  <p>Het compileert en de test is groen. Dit gebeurt er met 1.234 uitbetalingen van € 100 tot € 5.100 (alles nagespeeld):</p>
+  <ol>
+    <li><b>De laatste batch wordt nooit verstuurd.</b> Er is geen finisher, dus wat na de laatste volle batch nog in <code>buffer</code> zit, blijft daar. De bank krijgt drie batches met samen 1.141 uitbetalingen. 93 merchants worden niet betaald, en er is geen exception en geen log. Met 1.234 keer € 10 zijn het er 1.000 van de 1.234. De test met precies 1.000 ziet het niet, omdat daar geen rest is.</li>
+    <li><b>De rest van gisteren gaat vandaag mee.</b> <code>buffer</code> en <code>total</code> worden één keer aangemaakt, als <code>bankBatches</code> wordt aangeroepen. De lambda vangt ze, en <code>BANK_BATCHES</code> is <code>static final</code>. Alle runs delen dus één buffer. In onze tweede run met dezelfde instantie begon de eerste batch met payout 1141, 1142, 1143: de 93 van gisteren, een dag te laat en buiten de administratie van de run van vandaag.</li>
+    <li><b>Twee runs tegelijk lopen door elkaar.</b> Draaien de EUR- en de GBP-run gelijktijdig, dan schrijven twee threads in dezelfde <code>ArrayList</code>. Met twee threads en 20 herhalingen klopte het aantal verstuurde uitbetalingen in 19 runs niet, en er kwam geen enkele exception.</li>
+    <li><b>Een te grote uitbetaling levert een lege batch op.</b> Is de eerste uitbetaling groter dan € 1.000.000, dan pusht de integrator eerst <code>PayoutBatch[payouts=[]]</code> en zet daarna de te grote uitbetaling in een eigen batch die over de limiet gaat (nagespeeld).</li>
+    <li>Kleiner: <code>BigDecimal[] total</code> is de array-truc uit <a href="lambdas-en-functies.html">F2</a> om een gevangen variabele te muteren. Hier wijst die truc ook op het echte probleem: de state zit op de verkeerde plek.</li>
+  </ol>
+
+  <h3>De herschrijving</h3>
+  <div class="diff">
+    <div class="diff-head">PayoutGatherers.java · na review</div>
+<pre><span>public static Gatherer&lt;Payout, ?, PayoutBatch&gt; bankBatches(int maxCount, BigDecimal maxTotal) {</span><span>    return Gatherer.ofSequential(</span><span>            OpenBatch::new,                                    // verse state per stream</span><span>            Gatherer.Integrator.ofGreedy((batch, payout, downstream) -&gt; {</span><span>                if (payout.amount().compareTo(maxTotal) &gt; 0) {</span><span>                    throw new PayoutExceedsBatchLimitException(payout.id());</span><span>                }</span><span>                if (!batch.fits(payout, maxCount, maxTotal)) {</span><span>                    downstream.push(batch.close());</span><span>                }</span><span>                batch.add(payout);</span><span>                return true;                                   // greedy: stopt nooit zelf</span><span>            }),</span><span>            (batch, downstream) -&gt; {                           // finisher: de rest</span><span>                if (!batch.isEmpty()) downstream.push(batch.close());</span><span>            });</span><span>}</span><span></span><span>private static final class OpenBatch {                         // mutable, maar ontsnapt nooit</span><span>    private final List&lt;Payout&gt; payouts = new ArrayList&lt;&gt;();</span><span>    private BigDecimal total = BigDecimal.ZERO;</span><span></span><span>    boolean fits(Payout p, int maxCount, BigDecimal maxTotal) {</span><span>        return payouts.size() &lt; maxCount &amp;&amp; total.add(p.amount()).compareTo(maxTotal) &lt;= 0;</span><span>    }</span><span>    void add(Payout p) { payouts.add(p); total = total.add(p.amount()); }</span><span>    boolean isEmpty() { return payouts.isEmpty(); }</span><span>    PayoutBatch close() {</span><span>        var batch = new PayoutBatch(List.copyOf(payouts));</span><span>        payouts.clear();</span><span>        total = BigDecimal.ZERO;</span><span>        return batch;</span><span>    }</span><span>}</span></pre>
+  </div>
+  <p>Resultaat op dezelfde 1.234 uitbetalingen: vier batches <code>[387, 375, 379, 93]</code>, samen 1.234. Twee runs met dezelfde instantie geven hetzelfde resultaat. Twee threads met 20 herhalingen geven 0 afwijkingen. De beslissingen achter de herschrijving:</p>
+  <ul>
+    <li><b>State via de initializer.</b> <code>OpenBatch::new</code> wordt per evaluatie aangeroepen, dus de gatherer-instantie zelf is stateless en mag gerust <code>static final</code> zijn. De mutable <code>OpenBatch</code> is lokale mutatie die niet ontsnapt; dat is in orde (zie <a href="functioneel-ontwerp.html">F4</a>).</li>
+    <li><b>Finisher voor de rest.</b> Bij elke gatherer die buffert, vraag je: "wat gebeurt er met de halfvolle buffer aan het eind?"</li>
+    <li><b><code>ofGreedy</code>, omdat hij nooit zelf stopt.</b> In een parallelle stream blijft upstream dan parallel (zie de meting hierboven). <code>limit</code> of <code>findFirst</code> achter de gatherer werken nog steeds.</li>
+    <li><b>Sequentieel, bewust.</b> Batches hangen af van de volgorde. Er is geen zinnige combiner die twee halve batchlijsten samenvoegt zonder opnieuw te splitsen.</li>
+    <li><b>Te groot is een fout.</b> Een uitbetaling boven de batchlimiet past in geen enkele batch. Die hoort te falen met een eigen exception, en mag niet stil een lege of te grote batch opleveren.</li>
+  </ul>
+
+  <h3>Vijf manieren om te batchen, en hun prijs</h3>
+  <p>De gatherer is niet automatisch de beste vorm. Dezelfde logica op vijf manieren:</p>
+  <div class="fixes">
+    <div>
+      <h4>A · <code>Gatherers.windowFixed(500)</code></h4>
+<pre class="snip">payouts.stream()
+       .gather(Gatherers.windowFixed(500))
+       .map(PayoutBatch::new)
+       .forEach(bank::submit);</pre>
+      <p>Eén regel, en de laatste korte batch zit erbij (nagespeeld: <code>[500, 500, 234]</code>). De beste keuze als er alleen een aantalslimiet is. <b>Prijs:</b> geen; past hier alleen niet, door de bedraglimiet.</p>
+    </div>
+    <div>
+      <h4>B · Eigen gatherer (de herschrijving)</h4>
+      <p>Lazy: batch 1 gaat naar de bank voordat batch 2 bestaat. Herbruikbaar in elke stream, en los te testen met 0, 1, 500, 501 en een te grote uitbetaling. <b>Prijs:</b> zo'n 30 regels en een API (vier functies) die niet elke collega kent. Dat is de moeite waard bij twee of meer gebruikers of bij een stream die toch al bestaat. Bij één plek is het twijfelachtig.</p>
+    </div>
+    <div>
+      <h4>C · Gewone loop</h4>
+<pre class="snip">var batches = new ArrayList&lt;PayoutBatch&gt;();
+var current = new ArrayList&lt;Payout&gt;();
+var total = BigDecimal.ZERO;
+for (var p : due) {
+    if (current.size() == maxCount
+            || total.add(p.amount()).compareTo(maxTotal) &gt; 0) {
+        batches.add(new PayoutBatch(List.copyOf(current)));
+        current.clear();
+        total = BigDecimal.ZERO;
+    }
+    current.add(p);
+    total = total.add(p.amount());
+}
+if (!current.isEmpty()) batches.add(new PayoutBatch(List.copyOf(current)));</pre>
+      <p>Gaf exact dezelfde batches als de gatherer (nagespeeld). Iedereen kan het lezen, en de "rest"-regel staat zichtbaar onderaan. <b>Prijs:</b> niet herbruikbaar, en de batching zit verweven met de plek waar hij nodig is. Op één plek is dit een prima keuze. Een comment "maak hier een gatherer van" verdient het niet.</p>
+    </div>
+    <div>
+      <h4>D · Eigen <code>Collector</code></h4>
+      <p>Kan, maar een collector is terminaal: je krijgt eerst een <code>List&lt;PayoutBatch&gt;</code> met álle batches in het geheugen, en pas daarna verstuur je. Je moet ook een combiner schrijven voor iets wat niet te combineren is. Kies een collector als het resultaat echt één waarde is (een map, een totaal), en niet een reeks die verder door de pijplijn moet.</p>
+    </div>
+    <div>
+      <h4>Niet doen · index-teller met <code>groupingBy</code></h4>
+<pre class="snip">var i = new AtomicInteger();
+payouts.stream()
+       .collect(groupingBy(p -&gt; i.getAndIncrement() / 500))
+       .values().forEach(...);</pre>
+      <p>De pre-Java-24-truc. Sequentieel klopt hij toevallig, maar parallel kwam in 20 van de 20 runs een uitbetaling in een andere batch terecht dan zijn positie. Een bedraglimiet is er niet mee te maken, en de volgorde van de batches komt uit een <code>HashMap</code>. Dit is het <code>AtomicInteger</code>-signaal uit <a href="lambdas-en-functies.html">F2</a>.</p>
+    </div>
+  </div>
+
+  <h3>Drie andere vormen van state, met dezelfde afweging</h3>
+  <p><b>Lopend saldo.</b> Wordt het saldo van een merchant ergens in de dag negatief?</p>
+  <div class="snip-pair">
+    <div><p class="snip-label">scan</p>
+<pre class="snip">boolean overdraft = entries.stream()
+        .gather(scan(() -&gt; opening,
+                (bal, e) -&gt; bal.add(e.amount())))
+        .anyMatch(bal -&gt; bal.signum() &lt; 0);</pre></div>
+    <div><p class="snip-label">loop</p>
+<pre class="snip">var bal = opening;
+for (var e : entries) {
+    bal = bal.add(e.amount());
+    if (bal.signum() &lt; 0) return Optional.of(e);
+}
+return Optional.empty();</pre></div>
+  </div>
+  <p><code>scan</code> leest als de definitie ("de reeks tussenstanden, ergens negatief?") en stopt vroeg: met <code>anyMatch</code> werden 2 van de 5 boekingen gelezen. Maar <code>scan</code> geeft alleen de stand door, niet de boeking die hem veroorzaakte. Vraagt support "wélke boeking?", dan moet de state een record <code>(boeking, saldo)</code> worden, en dan is de loop rechts duidelijker. Kies op de vraag die de code beantwoordt.</p>
+
+  <p><b>Velocity-check.</b> "Vijf of meer pogingen met dezelfde kaart binnen tien minuten" is een venster over de laatste vijf pogingen, gesorteerd op tijd:</p>
+<pre class="snip">attempts.stream()
+        .sorted(comparing(PaymentAttempt::at))
+        .gather(Gatherers.windowSliding(5))
+        .filter(w -&gt; w.size() == 5)                                       // zie hieronder
+        .anyMatch(w -&gt; Duration.between(w.getFirst().at(), w.getLast().at())
+                               .compareTo(Duration.ofMinutes(10)) &lt;= 0);</pre>
+  <p>Zonder <code>w.size() == 5</code> geeft een kaart met één of twee pogingen één kort venster, en dat valt altijd binnen tien minuten. In onze run werd een kaart met één poging geflagd. Dit is het belangrijkste randgeval van <code>windowSliding</code>, en het staat ook letterlijk in de Javadoc.</p>
+
+  <p><b>PSP-status voor veel betalingen.</b> In <a href="streams-lezen-en-schrijven.html">F1</a> (vraag 5) zag je <code>parallelStream().map(psp::fetchStatus)</code>: blokkerende I/O op de gedeelde common pool. Er zijn drie alternatieven:</p>
+  <div class="snip-pair">
+    <div><p class="snip-label">mapConcurrent</p>
+<pre class="snip">List&lt;PspStatus&gt; statuses = refs.stream()
+        .gather(mapConcurrent(20, psp::fetchStatus))
+        .toList();</pre></div>
+    <div><p class="snip-label">executor + Semaphore</p>
+<pre class="snip">// PERMITS: één Semaphore(20) voor de hele service
+try (var ex = Executors.newVirtualThreadPerTaskExecutor()) {
+    var futures = refs.stream()
+        .map(ref -&gt; ex.submit(() -&gt; {
+            PERMITS.acquire();
+            try { return psp.fetchStatus(ref); }
+            finally { PERMITS.release(); }
+        }))
+        .toList();
+    for (var f : futures) result.add(f.get(5, SECONDS));
+}</pre></div>
+  </div>
+  <p>100 calls van 50–200 ms gaven met <code>mapConcurrent(10)</code> 1,6 s, met max 10 tegelijk en op virtual threads, in bronvolgorde. <code>parallelStream()</code> deed er 1,7 s over, op 8 platform-threads van de common pool. De winst zit niet in de snelheid. Hij zit erin dat de grens van jou is in plaats van het aantal cores, en dat de common pool vrij blijft. Wat je van <code>mapConcurrent</code> moet weten voordat je hem goedkeurt:</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Situatie</th><th>Gedrag (nagespeeld op JDK 25.0.4)</th></tr></thead>
+    <tbody>
+      <tr><td>Volgorde</td><td>Uitvoer in bronvolgorde, ook als latere calls eerder klaar zijn, en ook in een <code>parallelStream()</code>.</td></tr>
+      <tr><td>Grens</td><td>Max <code>n</code> tegelijk <b>per evaluatie van de stream</b>. Tien gelijktijdige requests met elk <code>mapConcurrent(5)</code> gaven 50 calls tegelijk. Een gedeelde <code>Semaphore(5)</code> hield het op 5.</td></tr>
+      <tr><td>Threads</td><td>Nieuwe virtual threads zonder naam (<code>isVirtual()</code> = <code>true</code>, naam leeg). Zoek dus niet op threadnaam in je logs.</td></tr>
+      <tr><td>Trage call vooraan</td><td>Head-of-line blocking: met grens 4 en call #0 van 2 s waren na 2 s precies 4 calls gestart (paneel B).</td></tr>
+      <tr><td><code>limit(3)</code> / <code>findFirst()</code></td><td>Stopt en onderbreekt wat nog loopt. Met <code>limit(3)</code> en grens 10 waren 10 calls gestart, 4 afgemaakt en 6 onderbroken. "Best effort", zegt de Javadoc: een call die al bij de PSP is, is daar ook aangekomen.</td></tr>
+      <tr><td>Exception in call #5</td><td>Eerst worden #0–#4 doorgegeven, daarna komt dezelfde <code>IllegalStateException</code> eruit (niet ingepakt), en lopende calls worden onderbroken. De fout komt pas aan de beurt in volgorde: met een trage #0 van 1,5 s zag de aanroeper hem na 1.501 ms. Een <code>Error</code> komt ingepakt in een <code>RuntimeException</code> naar buiten.</td></tr>
+      <tr><td>Aanroeper onderbroken</td><td>Annuleert niets. Alle 20 calls liepen af (2.008 ms) en daarna stond de interrupt-vlag nog aan.</td></tr>
+      <tr><td><code>ThreadLocal</code> / transactie</td><td>Een gewone <code>ThreadLocal</code> is in de functie <code>null</code>, een <code>InheritableThreadLocal</code> wordt wel meegegeven. Een Spring-transactie gaat níet mee: <code>isActualTransactionActive()</code> was <code>false</code>, en inserts vanuit de functie bleven staan na een rollback van de aanroeper (Spring Framework 7.0.9, H2).</td></tr>
+    </tbody>
+  </table></div>
+  <p>Kies de executor-variant als de grens over requests heen moet gelden (een PSP-contract per account), of als je per call een eigen timeout of fallback wilt. Kies <code>mapConcurrent</code> voor een begrensde, geordende fan-out binnen één stuk logica. De timeout hoort in beide gevallen op de client (zie <a href="resilience.html">module 9</a>), want <code>mapConcurrent</code> zelf heeft er geen. Over virtual threads en pinning: <a href="concurrency-in-singletons.html">module 4</a>.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Een loop waar een gatherer had gekund.</b> Batching of een lopend saldo op één plek, in een methode van tien regels, is als loop prima en vaak duidelijker. Een eigen gatherer verdient zich terug bij hergebruik, bij een stream die er toch al is, of als je lazy wilt doorgeven. "Dit kan met een gatherer" is geen bevinding.</li>
+    <li><b>Een ingebouwde gatherer die "verdacht" leest.</b> <code>windowFixed</code> laat de laatste korte batch niet vallen, en <code>mapConcurrent</code> husselt de volgorde niet. Ken de randgevallen voordat je erover begint.</li>
+    <li><b>Een sequentiële gatherer in een sequentiële stream.</b> Dat is 95% van de code. Het ontbreken van een combiner is pas een aandachtspunt in een <code>parallelStream()</code>, en zelfs dan alleen als de integrator niet greedy is en upstream duur.</li>
+    <li><b>Een mutable state-object.</b> <code>OpenBatch</code> met een <code>ArrayList</code> is in orde zolang het via de initializer komt en de lijst niet naar buiten lekt (<code>List.copyOf</code> bij het pushen).</li>
+    <li><b><code>mapConcurrent</code> met een vaste, lage grens</b> in een nachtelijke batch. 20.000 calls van 200 ms met grens 50 duurden 80 s. Dat is geen probleem 's nachts, en het is beter dan 20.000 tegelijk.</li>
+  </ul>
+  <h3>Wanneer géén gatherer</h3>
+  <ul>
+    <li><b><code>fold</code> waar <code>reduce</code> of <code>collect</code> past.</b> <code>fold</code> is bedoeld voor een reductie zonder combiner die midden in een pijplijn moet blijven. Wie hem gebruikt met <code>.findFirst().orElseThrow()</code> erachter, wilde <code>reduce</code>.</li>
+    <li><b>Een eigen gatherer die een bestaande stap nabouwt</b> (<code>map</code>, <code>filter</code>, <code>takeWhile</code>, <code>distinct</code>). Dat is meer code met dezelfde semantiek.</li>
+    <li><b>Logica met vroege exit, meerdere uitkomsten en checked exceptions.</b> Een gatherer lost geen enkel probleem op dat de loop in <a href="streams-lezen-en-schrijven.html">F1</a> al oploste.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> bij verloren of gemengde elementen waar geld aan hangt (geen finisher, state buiten de initializer op een gedeelde instantie), bij <code>mapConcurrent</code> zonder zinnige grens richting een externe partij, of bij database-writes in de functie van <code>mapConcurrent</code> die op een transactie rekenen · <span class="sev major">major</span> bij een verkeerd randgeval met functioneel gevolg (kort <code>windowSliding</code>-venster, <code>ofGreedy</code> op een integrator die stopt), of een niet-greedy sequentiële gatherer midden in een gemeten-dure parallelle stream · <span class="sev minor">minor</span> of <span class="sev nit">nit</span> bij <code>fold</code> waar <code>reduce</code> past, een eigen gatherer voor één plek, of <code>return true</code> in plaats van <code>return downstream.push(x)</code> (in onze runs stopte de stream na <code>limit</code> toch, maar het is niet wat de API vraagt) · laat gaan bij loop-of-gatherer-voorkeur zonder concreet argument.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Eigen gatherers zijn lastig te lezen. Kun je niet gewoon <code>Gatherers.windowFixed(500)</code> gebruiken?</p><p style="color:var(--muted);font-size:14px">De suggestie is fout (de bedraglimiet past niet in <code>windowFixed</code>), en de twee echte bugs worden niet genoemd. De auteur legt uit waarom het niet kan, en de PR gaat erdoor met een ontbrekende finisher.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> De gatherer heeft geen finisher, dus de laatste, halfvolle batch wordt nooit gepusht. Lokaal met 1.234 uitbetalingen: de bank krijgt er 1.141, en 93 merchants worden zonder enige fout niet betaald. De test met precies 1.000 heeft geen rest en ziet dit niet.</p><p><b>Daarnaast:</b> <code>buffer</code> en <code>total</code> worden in <code>bankBatches</code> aangemaakt en niet in een initializer, en <code>BANK_BATCHES</code> is <code>static final</code>. Daardoor zit de rest van run 1 in de eerste batch van run 2 (nagespeeld: run 2 begint met payout 1141), en delen twee gelijktijdige runs één <code>ArrayList</code>.</p><p><b>Voorstel:</b> <code>Gatherer.ofSequential(OpenBatch::new, Integrator.ofGreedy(...), finisher)</code> met een finisher die de rest pusht, plus tests met 0, 500, 501 en 1.234 uitbetalingen en twee runs op dezelfde instantie. Wat moet er gebeuren met een uitbetaling boven € 1.000.000? Nu wordt er eerst een lege batch gepusht.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt, is fout. Stijl- en ontwerpbevindingen tellen ook mee; zeg dan waaróm de herschrijving beter is. Context: de job draait elke nacht met zo'n 20.000 open captures. Het PSP-contract staat maximaal 50 gelijktijdige requests per API-account toe, en hetzelfde account bedient overdag én 's nachts de live autorisaties. <code>CaptureRepository</code> is een Spring Data JPA-repository. <code>ledger.bookBatch</code> accepteert maximaal 500 boekingen per call. De risk-service roept <code>checkVelocity</code> aan na elke betaalpoging, ook de eerste; een <code>RiskFlag</code> zet de kaart op handmatige review.</p>
+  <div class="diff">
+    <div class="diff-head">PR #657 · Nachtelijke reconciliatie van captures met de PSP</div>
+<pre><span><span class="ln">1</span>@Service</span><span><span class="ln">2</span>public class CaptureReconciliationJob {</span><span><span class="ln">3</span></span><span><span class="ln">4</span>    private static final int LEDGER_BATCH_SIZE = 500;           // limiet van de ledger-API</span><span><span class="ln">5</span>    private static final int MAX_ATTEMPTS = 5;</span><span><span class="ln">6</span>    private static final Duration VELOCITY_WINDOW = Duration.ofMinutes(10);</span><span><span class="ln">7</span></span><span><span class="ln">8</span>    private final CaptureRepository captures;</span><span><span class="ln">9</span>    private final PspClient psp;                // connect- en read-timeout 2 s</span><span><span class="ln">10</span>    private final LedgerClient ledger;</span><span><span class="ln">11</span>    private final RiskFlagRepository riskFlags;</span><span><span class="ln">12</span></span><span><span class="ln">13</span>    // constructor-injectie weggelaten</span><span><span class="ln">14</span></span><span><span class="ln">15</span>    @Transactional</span><span><span class="ln">16</span>    public ReconciliationReport reconcile(LocalDate day) {</span><span><span class="ln">17</span>        List&lt;Capture&gt; open = captures.findOpenOn(day);</span><span><span class="ln">18</span></span><span><span class="ln">19</span>        List&lt;PspStatus&gt; statuses = open.stream()</span><span><span class="ln">20</span>                .gather(Gatherers.mapConcurrent(open.size(), capture -&gt; {</span><span><span class="ln">21</span>                    PspStatus status = psp.fetchStatus(capture.pspReference());</span><span><span class="ln">22</span>                    captures.save(capture.withStatus(status.code()));</span><span><span class="ln">23</span>                    return status;</span><span><span class="ln">24</span>                }))</span><span><span class="ln">25</span>                .toList();</span><span><span class="ln">26</span></span><span><span class="ln">27</span>        BigDecimal settledTotal = statuses.stream()</span><span><span class="ln">28</span>                .filter(PspStatus::isSettled)</span><span><span class="ln">29</span>                .map(PspStatus::amount)</span><span><span class="ln">30</span>                .gather(Gatherers.fold(() -&gt; BigDecimal.ZERO, BigDecimal::add))</span><span><span class="ln">31</span>                .findFirst()</span><span><span class="ln">32</span>                .orElseThrow();</span><span><span class="ln">33</span></span><span><span class="ln">34</span>        statuses.stream()</span><span><span class="ln">35</span>                .filter(PspStatus::isSettled)</span><span><span class="ln">36</span>                .map(LedgerEntry::from)</span><span><span class="ln">37</span>                .gather(Gatherers.windowFixed(LEDGER_BATCH_SIZE))</span><span><span class="ln">38</span>                .forEach(ledger::bookBatch);</span><span><span class="ln">39</span></span><span><span class="ln">40</span>        return new ReconciliationReport(day, open.size(), settledTotal);</span><span><span class="ln">41</span>    }</span><span><span class="ln">42</span></span><span><span class="ln">43</span>    public Optional&lt;RiskFlag&gt; checkVelocity(List&lt;PaymentAttempt&gt; attemptsOfCard) {</span><span><span class="ln">44</span>        return attemptsOfCard.stream()</span><span><span class="ln">45</span>                .sorted(comparing(PaymentAttempt::at))</span><span><span class="ln">46</span>                .gather(Gatherers.windowSliding(MAX_ATTEMPTS))</span><span><span class="ln">47</span>                .filter(w -&gt; Duration.between(w.getFirst().at(), w.getLast().at())</span><span><span class="ln">48</span>                                     .compareTo(VELOCITY_WINDOW) &lt;= 0)</span><span><span class="ln">49</span>                .findFirst()</span><span><span class="ln">50</span>                .map(w -&gt; riskFlags.save(RiskFlag.velocity(w.getFirst().cardId(), w)));</span><span><span class="ln">51</span>    }</span><span><span class="ln">52</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regel 20</b> <span class="sev blocker">blocker</span> <code>mapConcurrent(open.size(), …)</code> is in de praktijk geen grens. Met 20.000 open captures gaan er 20.000 PSP-calls tegelijk uit. Nagespeeld: 20.000 taken met <code>open.size()</code> als grens gaven 20.000 tegelijk in de lucht. Het contract staat er 50 toe, en de live autorisaties gebruiken hetzelfde account. De nachtelijke job laat dus de echte betalingen van klanten vastlopen op 429's of throttling. <b>Herschrijving:</b> een vaste, configureerbare grens ruim onder het contract (bijv. 20, zodat er ruimte blijft voor live verkeer). Dat kost tijd, maar die is er: 20.000 calls van 200 ms met grens 50 duurden 80 s. Draait deze job ooit op meerdere pods, dan geldt de grens per pod; een globale limiet hoort dan bij de client of een gedeelde rate limiter (<a href="resilience.html">module 9</a>).</p>
+      <p><b>Regels 15 en 22</b> <span class="sev blocker">blocker</span> <i>Mechanisme uit deze module, gevolg uit <a href="transacties-en-proxies.html">module 1</a>.</i> De functie van <code>mapConcurrent</code> draait op nieuwe virtual threads. De Spring-transactie zit aan de aanroepende thread vast (een <code>ThreadLocal</code>) en gaat niet mee. Elke <code>captures.save(...)</code> start daarom een eigen transactie (<code>save</code> van Spring Data is zelf <code>@Transactional</code>) en commit meteen. Nagespeeld met Spring Framework 7.0.9 en H2: in de functie <code>isActualTransactionActive() == false</code>, en de vier inserts bleven staan na een rollback van de aanroeper. Het gevolg: gooit <code>ledger.bookBatch</code> bij batch 3 een exception, dan rolt <code>reconcile</code> "terug", maar alle 20.000 statussen zijn al gecommit. Morgen vindt <code>findOpenOn</code> ze niet meer, en batch 3 en verder worden nooit geboekt. Ondertussen houdt <code>@Transactional</code> wel een connectie vast tijdens de hele PSP-fase. <b>Herschrijving:</b> laat in <code>mapConcurrent</code> alleen de I/O doen (<code>psp::fetchStatus</code>), en sla daarna de statussen op in de aanroepende thread, in een korte transactie. De vraag in welke volgorde database en ledger worden bijgewerkt, is daarna nog open: dat is de dual write uit <a href="dual-write-en-outbox.html">module 3</a>. Stel hem als vraag, en maak er geen extra bevinding van.</p>
+      <p><b>Regels 46–48</b> <span class="sev major">major</span> <code>windowSliding(5)</code> geeft bij minder dan vijf pogingen één kórter venster, en dat valt altijd binnen tien minuten. Omdat <code>checkVelocity</code> na elke poging wordt aangeroepen, krijgt elke kaart al bij de eerste poging een <code>RiskFlag</code>. Nagespeeld: één poging levert een flag op, twee pogingen binnen een minuut ook (venster van 2). Iedere nieuwe klant gaat naar handmatige review. <b>Herschrijving:</b> <code>.filter(w -&gt; w.size() == MAX_ATTEMPTS)</code> vóór de tijdcheck. Daarna: geen flag bij 1 of 2 pogingen, wel bij 5 binnen 8 minuten, en niet bij 5 over 12 minuten. Waarom major en geen blocker: er gaat geen geld verkeerd, maar de review-queue loopt vol en goede klanten worden opgehouden. Blokkeert de flag de kaart automatisch, dan is het een blocker.</p>
+      <p><b>Regels 30–32</b> <span class="sev minor">minor</span> <code>fold</code> plus <code>findFirst().orElseThrow()</code> is <code>reduce(BigDecimal.ZERO, BigDecimal::add)</code>. Waarom de herschrijving beter is: <code>reduce</code> zegt "één waarde" en is een terminale stap. <code>fold</code> is bedoeld voor een reductie die midden in de pijplijn moet blijven of geen combiner kan hebben. Bovendien is de <code>orElseThrow()</code> dode code die een foutpad suggereert dat niet bestaat. <code>fold</code> op een lege stream geeft de beginwaarde (nagespeeld: zonder settled captures komt er <code>0</code> uit, en geen exception). Een lezer gaat zoeken wanneer die exception optreedt.</p>
+      <p><b>Regel 37</b> <span class="sev ok">geen probleem</span> De afleider: "en wat gebeurt er met de laatste 234 boekingen?" <code>windowFixed</code> geeft de laatste, kortere batch gewoon door (nagespeeld: 1.234 boekingen worden <code>[500, 500, 234]</code>, en de Javadoc zegt het ook). Dit is precies het geval waarvoor <code>windowFixed</code> bestaat: alleen een aantalslimiet. Een eigen gatherer of loop zou hier slechter zijn. De <code>forEach</code> met een side effect op regel 38 is ook in orde, want <code>forEach</code> is de plek waar side effects horen (<a href="streams-lezen-en-schrijven.html">F1</a>).</p>
+      <p><b>Regels 19–25, volgorde</b> <span class="sev ok">geen probleem</span> <code>statuses</code> staat in dezelfde volgorde als <code>open</code>, ook al komen de PSP-antwoorden in willekeurige volgorde terug. <code>mapConcurrent</code> garandeert de bronvolgorde.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort. Lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · kiezen</span></div>
+      <p class="situ">Een PR voegt een methode toe die het hoogste tussensaldo van een merchant over de dag berekent, voor de liquiditeitsplanning:</p>
+<pre class="snip">BigDecimal peak = entries.stream()
+        .gather(Gatherers.scan(() -&gt; opening, (bal, e) -&gt; bal.add(e.amount())))
+        .max(Comparator.naturalOrder())
+        .orElse(opening);</pre>
+      <p class="ask">Keur je deze vorm goed, of vraag je om een loop?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Goedkeuren. <code>scan</code> plus <code>max</code> zegt letterlijk "de hoogste tussenstand", en dat is precies de vraag.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>scan</code> geeft elke tussenstand door, zonder de beginwaarde (nagespeeld: 20 + <code>[100, −130, 50]</code> → <code>[120, −10, 40]</code>). <code>orElse(opening)</code> dekt de dag zonder boekingen af, waarin <code>scan</code> niets oplevert.</li>
+          <li>Let op: het openingssaldo telt alleen mee op een dag zonder boekingen. Nagespeeld: opening 20 met twee boekingen van −5 geeft piek 15, niet 20. Is dat de bedoeling? Dat is een vraag over het domein, niet over de stream.</li>
+          <li>Een loop wordt pas beter als je ook de boeking wilt teruggeven die de piek veroorzaakte. Dan moet de state van <code>scan</code> een record worden, en dat leest slechter dan twee lokale variabelen.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>question:</b> telt het openingssaldo mee als piek? Nu alleen op een dag zonder boekingen. Als het altijd mee moet: <code>max(opening, peak)</code>. De vorm zelf is prima.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Een gatherer geeft refunds door tot het dagbudget op is. Een collega stelt voor om <code>Integrator.ofGreedy</code> te gebruiken "want dat is sneller in parallel":</p>
+<pre class="snip">static Gatherer&lt;Refund, ?, Refund&gt; withinBudget(BigDecimal budget) {
+    return Gatherer.ofSequential(
+            () -&gt; new BigDecimal[]{ budget },
+            Gatherer.Integrator.ofGreedy((left, r, down) -&gt; {
+                if (r.amount().compareTo(left[0]) &gt; 0) return false;   // budget op: stop
+                left[0] = left[0].subtract(r.amount());
+                return down.push(r);
+            }));
+}</pre>
+      <p class="ask">Wat gebeurt er met de refunds na de eerste die niet meer past?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Die worden gewoon verder verwerkt. <code>ofGreedy</code> belooft dat de integrator nooit zelf stopt, dus de <code>false</code> wordt genegeerd.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Nagespeeld: een greedy integrator die bij element 3 <code>false</code> teruggaf, leverde <code>[1, 2, 3, 4, 5, 6]</code> op; dezelfde integrator zonder <code>ofGreedy</code> <code>[1, 2, 3]</code>.</li>
+          <li>Met deze gatherer zelf nagespeeld: budget 100 en refunds van 40, 50, 30, 5 en 4. Met <code>ofGreedy</code> kwamen er refunds 1, 2, 4 en 5 door, zonder <code>ofGreedy</code> alleen 1 en 2. Na de refund van 30 die niet past, gaan kleinere refunds die nog in het restbudget passen er alsnog door. De code doet dus iets anders dan het commentaar "stop" zegt.</li>
+          <li>De collega heeft half gelijk. Greedy laat upstream in een parallelle stream parallel blijven (gemeten: ~600 ms tegen 2,9 s). Maar dat mag alleen als de integrator nooit stopt.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> deze integrator stopt bij een budgetoverschrijding (<code>return false</code>), dus hij is niet greedy. Met <code>ofGreedy</code> wordt die <code>false</code> genegeerd en lopen de refunds daarna door. Gebruik <code>Integrator.of(...)</code>, of laat de lambda direct als integrator staan.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">Statusopvraag voor 100 betalingen. Call #0 duurt 1,5 s, call #5 gooit meteen een <code>IllegalStateException</code> ("PSP 503"), en de rest duurt 10 ms.</p>
+<pre class="snip">refs.stream()
+    .gather(Gatherers.mapConcurrent(10, psp::fetchStatus))
+    .forEach(statusUpdater::apply);</pre>
+      <p class="ask">Welke statussen worden toegepast, welke exception krijgt de aanroeper, en wanneer?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">#0 tot en met #4 worden toegepast. Daarna komt dezelfde <code>IllegalStateException</code> eruit, na ongeveer 1,5 s, en niet meteen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Uitvoer en fouten komen in bronvolgorde. De fout van #5 is pas aan de beurt als #0 t/m #4 zijn doorgegeven. Gemeten: de exception kwam na 1.501 ms.</li>
+          <li>Een <code>RuntimeException</code> wordt niet ingepakt (gemeten: <code>IllegalStateException</code>, <code>getCause()</code> is <code>null</code>). Een <code>Error</code> komt wel ingepakt in een <code>RuntimeException</code> naar buiten.</li>
+          <li>Lopende calls worden onderbroken en er starten geen nieuwe. #6 en verder worden dus niet toegepast, ook als de PSP ze al beantwoord had.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Eén 503 stopt hier de hele run. Wil je per betaling doorgaan, vang de fout dan in de functie en geef een resultaattype terug (<code>sealed StatusResult</code>, zie <a href="functioneel-ontwerp.html">F4</a>).</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · beoordelen</span></div>
+      <p class="situ">Een multi-tenant service zet de tenant in een <code>ThreadLocal</code> (<code>TenantContext</code>). Een PR vervangt een loop door:</p>
+<pre class="snip">List&lt;Invoice&gt; invoices = merchantIds.stream()
+        .gather(Gatherers.mapConcurrent(8, id -&gt;
+                invoiceClient.fetch(TenantContext.current(), id)))
+        .toList();</pre>
+      <p class="ask">Wat geeft <code>TenantContext.current()</code> in de functie, en wat stel je voor?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><code>null</code>, want de functie draait op nieuwe virtual threads die een gewone <code>ThreadLocal</code> niet erven.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Nagespeeld: <code>ThreadLocal</code> gaf <code>null</code> en <code>InheritableThreadLocal</code> gaf de waarde van de aanroeper. Hetzelfde mechanisme laat de Spring-transactie achter op de aanroepende thread.</li>
+          <li>De oplossing is niet om er een <code>InheritableThreadLocal</code> van te maken. Dan vertrouw je op een implementatiedetail, en in andere thread pools lekt de tenant juist mee naar het verkeerde werk.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>TenantContext.current()</code> wordt op de virtual threads van <code>mapConcurrent</code> gelezen, waar de <code>ThreadLocal</code> leeg is. Lees de tenant één keer vóór de stream in een lokale variabele en geef die mee: <code>var tenant = TenantContext.current();</code> en daarna <code>id -&gt; invoiceClient.fetch(tenant, id)</code>.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">Een bulk-refund-endpoint. De PSP staat per merchant-account 30 gelijktijdige requests toe, en de client heeft een timeout van 3 s. De toelichting zegt: "begrensd op 25, dus binnen het contract".</p>
+<pre class="snip">@PostMapping("/refunds/bulk")
+List&lt;RefundResult&gt; bulk(@RequestBody List&lt;RefundRequest&gt; requests) {
+    return requests.stream()
+            .gather(Gatherers.mapConcurrent(25, refundService::refund))
+            .toList();
+}</pre>
+      <p class="ask">Klopt de toelichting, en welke zwaarte geef je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee, de grens geldt per request. <span class="sev major">major</span>: twee gelijktijdige bulk-calls zitten al op 50.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Elke evaluatie van de stream heeft zijn eigen venster. Nagespeeld: tien gelijktijdige aanroepen van <code>mapConcurrent(5)</code> gaven 50 calls tegelijk. Een gedeelde <code>Semaphore(5)</code> hield het op 5.</li>
+          <li>Boven het contract krijg je 429's op refunds. Of dat geld kost, hangt af van wat <code>refund</code> doet bij een fout. Daarom major en geen blocker, tenzij refunds niet idempotent zijn en blind opnieuw worden geprobeerd (<a href="resilience.html">module 9</a>).</li>
+          <li><code>mapConcurrent</code> zelf is hier niet fout. Fout is de aanname dat de grens globaal is.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> de 25 van <code>mapConcurrent</code> geldt per aanroep van dit endpoint, niet voor de service. Twee bulk-requests tegelijk geven 50 refunds tegelijk tegen een contract van 30. Voorstel: een gedeelde limiter per PSP-account in de client (een <code>Semaphore</code> of de concurrency-limiet van de resilience-library), en <code>mapConcurrent</code> eventueel houden voor de fan-out binnen één request.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li><a href="https://openjdk.org/jeps/485">JEP 485: Stream Gatherers</a> (definitief in JDK 24): de secties "Built-in gatherers", "Parallel evaluation" (sequentieel zonder combiner, "zoals <code>forEachOrdered</code>") en "Gatherers vs. collectors".</li>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/stream/Gatherer.html"><code>Gatherer</code></a>: de klassebeschrijving (het equivalente loop-model, en dat een gatherer met <code>defaultCombiner()</code> alleen sequentieel wordt geëvalueerd), <code>Integrator.ofGreedy</code> en <code>Downstream.push</code>.</li>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/stream/Gatherers.html"><code>Gatherers</code></a>: de randgevallen van <code>windowFixed</code> en <code>windowSliding</code>, en de API- en implementatienotities bij <code>mapConcurrent</code> (volgorde, best-effort annulering, exceptions).</li>
+    <li>Java SE 25 Core Libraries, <a href="https://docs.oracle.com/en/java/javase/25/core/stream-gatherers.html">Stream Gatherers</a>: een uitgewerkte eigen gatherer, zowel als record dat <code>Gatherer</code> implementeert als via <code>Gatherer.of</code>.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -507,7 +507,7 @@ List&lt;PaymentStatus&gt; statuses(@RequestParam List&lt;UUID&gt; orderIds) {
           <li>De "8×" hangt af van het aantal cores, niet van wat de PSP aankan. Er is geen grens op het aantal gelijktijdige calls per request en geen timeout. Geen blocker, omdat er geen data misgaat, maar wel iets dat onder belasting omvalt.</li>
         </ul>
         <p class="a-lbl">In de review</p>
-        <p class="review-note"><b>issue:</b> <code>parallelStream()</code> met een HTTP-call per element draait op de gedeelde common pool (cores − 1 threads). Onder belasting blokkeren deze calls alle andere parallelle streams in de JVM, en het aantal gelijktijdige PSP-calls is niet begrensd. Voorstel: een virtual-thread-executor met een <code>Semaphore</code> als grens, of <code>Gatherers.mapConcurrent</code> (Java 24+, zie F5). Plus een timeout op de client.</p>
+        <p class="review-note"><b>issue:</b> <code>parallelStream()</code> met een HTTP-call per element draait op de gedeelde common pool (cores − 1 threads). Onder belasting blokkeren deze calls alle andere parallelle streams in de JVM, en het aantal gelijktijdige PSP-calls is niet begrensd. Voorstel: een virtual-thread-executor met een <code>Semaphore</code> als grens, of <code>Gatherers.mapConcurrent</code> (Java 24+, zie <a href="gatherers-en-geavanceerde-streams.html">F5</a>). Plus een timeout op de client.</p>
       </div></details>
     </li>
 
