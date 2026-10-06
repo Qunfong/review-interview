@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Streams lezen en schrijven · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module beoordeel je of een stream of een loop de logica beter uitdrukt, herken je side effects die bij laziness of parallellisme misgaan, en kies en verdedig je de juiste collector.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;min-width:0}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+.fixes .snip{margin-top:8px}
+
+.tbl-wrap{margin-top:16px;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.tbl{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th,.tbl td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="streams-lezen-en-schrijven">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module F1 · D1 Modern Java · Spoor F</p>
+  <h1>Streams lezen en schrijven</h1>
+  <p class="lede">Een stream ziet eruit als een rij bewerkingen, maar het is een luie pijplijn die zelf bepaalt wat hij wanneer en op welke thread uitvoert. Wie dat vergeet, schrijft een uitbetaalrun die in de test klopt en in productie per run een ander totaal oplevert, of die stopt zodra één merchant een tweede valuta aanzet.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 (gedrag gedraaid op JDK 17 en 25)</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Per stuk logica <b>beoordelen</b> of een stream of een loop het helderder uitdrukt, en dat onderbouwen met iets concreters dan smaak: vroege exit, meerdere accumulatoren, checked exceptions, indexlogica.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span>Side effects in <code>forEach</code>, <code>map</code> en <code>peek</code> <b>herkennen</b>, met het mechanisme (laziness, weggeoptimaliseerde stappen, parallellisme) <b>uitleggen</b> waarom ze misgaan, en ze <b>herschrijven</b> naar een collector.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span>De juiste collector of terminale stap <b>kiezen en verdedigen</b>: <code>toMap</code> met merge-functie, <code>groupingBy</code> met downstream, <code>partitioningBy</code>, <code>teeing</code>, <code>max</code>, en <code>Stream.toList()</code> tegenover <code>Collectors.toList()</code>.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>De <b>zwaarte inschatten</b> van een stream-bevinding (fout resultaat, crash, kosten of alleen leesbaarheid) en er een reviewcomment over schrijven met gevolg en voorstel.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Wat print <code>List.of("a", "b", "c").stream().peek(System.out::println).count()</code> op Java 17 of later?</li>
+      <li><code>toMap(PayoutAccount::merchantId, Function.identity())</code> krijgt twee rekeningen van dezelfde merchant. Wat gebeurt er, en is een merge-functie <code>(a, b) -&gt; a</code> de oplossing?</li>
+      <li>Je vervangt <code>.collect(Collectors.toList())</code> door <code>.toList()</code>. Welke aanroeper kan daardoor breken?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Een stream is een beschrijving van werk, geen uitvoering. <code>filter</code>, <code>map</code> en <code>peek</code> bouwen alleen een pijplijn op. Pas de terminale stap (<code>collect</code>, <code>toList</code>, <code>findFirst</code>, <code>count</code>, <code>forEach</code>) trekt elementen door die pijplijn. Zonder terminale stap gebeurt er niets, ook geen <code>peek</code>.</p>
+  <p>Drie gevolgen die je in een review moet kunnen uitleggen:</p>
+  <ul>
+    <li><b>Per element, niet per stap.</b> Elk element gaat de hele keten door voordat het volgende begint. <code>findFirst</code> stopt zodra het een resultaat heeft; de rest van de bron wordt nooit gelezen. Een <em>stateful</em> stap als <code>sorted()</code> is een barrière: die moet eerst alles binnenhalen voordat hij iets kan doorgeven.</li>
+    <li><b>Stappen mogen worden overgeslagen.</b> De <code>java.util.stream</code>-documentatie garandeert niet dat lambda's in tussenstappen worden aangeroepen. <code>count()</code> op een bron waarvan de grootte bekend is (een <code>List</code> zonder <code>filter</code>) slaat de hele pijplijn over, inclusief je <code>peek</code>. Alleen <code>forEach</code> en <code>forEachOrdered</code> voeren hun actie gegarandeerd uit.</li>
+    <li><b>Thread en volgorde zijn niet van jou.</b> Bij <code>parallelStream()</code> draaien je lambda's tegelijk op de gedeelde <code>ForkJoinPool.commonPool()</code> en op de aanroepende thread. Een lambda die een gedeelde <code>HashMap</code> of <code>ArrayList</code> muteert, heeft dan een data race. Een <em>collector</em> heeft dat probleem niet: elke thread vult zijn eigen container, en een combiner voegt die daarna samen. Daarom is <code>collect</code> de veilige manier om een stream naar een resultaat te brengen, en <code>forEach</code> naar gedeelde state niet.</li>
+  </ul>
+  <figure>
+    <svg viewBox="0 0 400 500" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee panelen. A: vier transacties gaan door filter, map en findFirst. tx1 valt af in filter, tx2 gaat door filter, map en findFirst, en daarna stopt de stream; tx3 en tx4 worden nooit gelezen. B: links schrijven twee threads via forEach in één gedeelde HashMap, wat updates kwijtraakt of een ConcurrentModificationException geeft. Rechts vult elke thread zijn eigen map en voegt een combiner ze samen tot één resultaat.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="arr-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--blocker)"/></marker>
+        <marker id="arr-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+      </defs>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--accent)">A · lazy: per element, tot het genoeg is</text>
+      <text x="0" y="38" font-size="11" class="mono" style="fill:var(--muted)">filter(SETTLED) → map(amount) → findFirst()</text>
+      <text x="170" y="66" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">filter</text>
+      <text x="260" y="66" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">map</text>
+      <text x="350" y="66" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">findFirst</text>
+
+      <text x="0" y="96" font-size="12" class="mono" style="fill:currentColor">tx1 PENDING</text>
+      <line x1="102" y1="92" x2="133" y2="92" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="135" y="79" width="70" height="26" rx="4" style="fill:var(--surface);stroke:var(--blocker)"/>
+      <text x="170" y="96" font-size="12" text-anchor="middle" style="fill:var(--blocker)">1 · valt af</text>
+
+      <text x="0" y="132" font-size="12" class="mono" style="fill:currentColor">tx2 SETTLED</text>
+      <line x1="102" y1="128" x2="133" y2="128" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="135" y="115" width="70" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="170" y="132" font-size="12" text-anchor="middle" style="fill:currentColor">2 · door</text>
+      <line x1="205" y1="128" x2="223" y2="128" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="225" y="115" width="70" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="260" y="132" font-size="12" text-anchor="middle" style="fill:currentColor">3</text>
+      <line x1="295" y1="128" x2="313" y2="128" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="315" y="115" width="70" height="26" rx="4" style="fill:var(--surface);stroke:var(--ok);stroke-width:2"/>
+      <text x="350" y="132" font-size="12" text-anchor="middle" style="fill:var(--ok)">4 · klaar</text>
+
+      <text x="0" y="168" font-size="12" class="mono" style="fill:var(--muted)">tx3 SETTLED</text>
+      <line x1="135" y1="164" x2="385" y2="164" style="stroke:var(--muted);stroke-dasharray:4 4"/>
+      <rect x="215" y="155" width="90" height="18" style="fill:var(--surface)"/>
+      <text x="260" y="168" font-size="12" text-anchor="middle" style="fill:var(--muted)">nooit gelezen</text>
+      <text x="0" y="204" font-size="12" class="mono" style="fill:var(--muted)">tx4 SETTLED</text>
+      <line x1="135" y1="200" x2="385" y2="200" style="stroke:var(--muted);stroke-dasharray:4 4"/>
+      <rect x="215" y="191" width="90" height="18" style="fill:var(--surface)"/>
+      <text x="260" y="204" font-size="12" text-anchor="middle" style="fill:var(--muted)">nooit gelezen</text>
+      <text x="0" y="238" font-size="12" style="fill:var(--muted)">Met sorted() ervoor: eerst alle vier door filter, dan pas map.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="290" font-size="15" font-weight="600" style="fill:var(--accent)">B · parallel: gedeelde map of collector</text>
+
+      <text x="0" y="316" font-size="12" font-weight="600" class="mono" style="fill:var(--blocker)">forEach → HashMap</text>
+      <rect x="0" y="330" width="80" height="30" rx="4" style="fill:none;stroke:currentColor"/>
+      <text x="40" y="350" font-size="12" text-anchor="middle" style="fill:currentColor">thread 1</text>
+      <rect x="105" y="330" width="80" height="30" rx="4" style="fill:none;stroke:currentColor"/>
+      <text x="145" y="350" font-size="12" text-anchor="middle" style="fill:currentColor">thread 2</text>
+      <line x1="40" y1="360" x2="78" y2="408" style="stroke:var(--blocker);stroke-width:2" marker-end="url(#arr-bad)"/>
+      <line x1="145" y1="360" x2="108" y2="408" style="stroke:var(--blocker);stroke-width:2" marker-end="url(#arr-bad)"/>
+      <text x="92" y="386" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">merge()</text>
+      <rect x="35" y="410" width="115" height="34" rx="4" style="fill:var(--surface);stroke:var(--blocker);stroke-width:2"/>
+      <text x="92" y="432" font-size="12" text-anchor="middle" style="fill:currentColor">één HashMap</text>
+      <text x="92" y="466" font-size="12" text-anchor="middle" style="fill:var(--blocker)">updates kwijt,</text>
+      <text x="92" y="482" font-size="12" text-anchor="middle" style="fill:var(--blocker)">of een exception</text>
+
+      <text x="215" y="316" font-size="12" font-weight="600" class="mono" style="fill:var(--ok)">collect(toMap(…, add))</text>
+      <rect x="215" y="330" width="80" height="30" rx="4" style="fill:none;stroke:currentColor"/>
+      <text x="255" y="350" font-size="12" text-anchor="middle" style="fill:currentColor">thread 1</text>
+      <rect x="320" y="330" width="80" height="30" rx="4" style="fill:none;stroke:currentColor"/>
+      <text x="360" y="350" font-size="12" text-anchor="middle" style="fill:currentColor">thread 2</text>
+      <line x1="255" y1="360" x2="255" y2="370" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <line x1="360" y1="360" x2="360" y2="370" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <rect x="215" y="372" width="80" height="26" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="255" y="389" font-size="12" text-anchor="middle" style="fill:currentColor">eigen map</text>
+      <rect x="320" y="372" width="80" height="26" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="360" y="389" font-size="12" text-anchor="middle" style="fill:currentColor">eigen map</text>
+      <line x1="255" y1="398" x2="290" y2="418" style="stroke:var(--ok);stroke-width:2" marker-end="url(#arr-ok)"/>
+      <line x1="360" y1="398" x2="325" y2="418" style="stroke:var(--ok);stroke-width:2" marker-end="url(#arr-ok)"/>
+      <rect x="257" y="420" width="100" height="28" rx="4" style="fill:var(--surface);stroke:var(--ok);stroke-width:2"/>
+      <text x="307" y="438" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">combiner</text>
+      <text x="307" y="466" font-size="12" text-anchor="middle" style="fill:var(--ok)">één resultaat,</text>
+      <text x="307" y="482" font-size="12" text-anchor="middle" style="fill:var(--ok)">elke run hetzelfde</text>
+    </svg>
+    <figcaption>A: de stream verwerkt één element tegelijk door de hele keten en stopt bij het eerste resultaat. Bijwerkingen in <code>filter</code> of <code>map</code> gebeuren dus alleen voor tx1 en tx2. B: met <code>forEach</code> schrijven threads tegelijk in dezelfde map. Een collector geeft elke thread een eigen container en voegt ze daarna samen.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Geverifieerd:</b> alle gedragsclaims in deze module zijn gedraaid op JDK 17.0.8 en JDK 25.0.4, met een trace in elke lambda. Paneel A: de trace is <code>filter tx1, filter tx2, map tx2</code>; met <code>sorted()</code> wordt het <code>filter</code> ×4, daarna één <code>map</code>. <code>List.of(...).stream().peek(...).count()</code> riep <code>peek</code> op beide versies nul keer aan; met een <code>filter</code> ervoor drie keer.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>De dagelijkse uitbetaalrun. Uit alle afgewikkelde transacties van gisteren berekent <code>PayoutCalculator</code> per merchant het saldo (captures min refunds en chargebacks) en koppelt dat aan een uitbetaalrekening. Het resultaat gaat als betaalbestand naar de bank. Er zijn zo'n 200.000 transacties per dag, en de auteur heeft <code>parallelStream()</code> gebruikt "omdat het veel data is".</p>
+  <div class="diff">
+    <div class="diff-head">PayoutCalculator.java</div>
+<pre><span>@Service</span><span>public class PayoutCalculator {</span><span></span><span>    private final PayoutAccountRepository accounts;</span><span></span><span>    // constructor-injectie weggelaten</span><span></span><span class="a">+   public List&lt;Payout&gt; calculate(List&lt;Transaction&gt; transactions) {</span><span class="a">+       Map&lt;MerchantId, BigDecimal&gt; totals = new HashMap&lt;&gt;();</span><span class="a">+       transactions.parallelStream()</span><span class="a">+               .filter(tx -&gt; tx.status() == Status.SETTLED)</span><span class="a">+               .forEach(tx -&gt; totals.merge(tx.merchantId(), tx.signedAmount(), BigDecimal::add));</span><span class="a">+</span><span class="a">+       Map&lt;MerchantId, PayoutAccount&gt; accountByMerchant =</span><span class="a">+               accounts.findAllByMerchantIdIn(totals.keySet()).stream()</span><span class="a">+                       .collect(Collectors.toMap(PayoutAccount::merchantId, Function.identity()));</span><span class="a">+</span><span class="a">+       List&lt;Payout&gt; payouts = new ArrayList&lt;&gt;();</span><span class="a">+       totals.forEach((merchant, total) -&gt; {</span><span class="a">+           if (total.signum() &gt; 0) {</span><span class="a">+               payouts.add(new Payout(accountByMerchant.get(merchant), total));</span><span class="a">+           }</span><span class="a">+       });</span><span class="a">+       return payouts;</span><span class="a">+   }</span><span>}</span></pre>
+  </div>
+  <p>De unit-test met tien transacties en één rekening per merchant is groen. Wat er in productie gebeurt:</p>
+  <ol>
+    <li><b>De totalen kloppen niet, en elke run anders.</b> Meerdere threads roepen tegelijk <code>HashMap.merge</code> aan. In onze run (200.000 transacties, 500 merchants, 20 herhalingen) gaf ongeveer de helft van de runs een totaal dat tienduizenden euro's afweek, en de andere helft een <code>ConcurrentModificationException</code>. Geen enkele run was goed. Sequentieel klopt dezelfde code wel; daarom ziet de test het niet.</li>
+    <li><b>De sleutel is fout.</b> Een merchant met EUR- en USD-omzet krijgt één totaal: €100 capture + $50 capture − €20 refund = 130, uitbetaald op de EUR-rekening. Dit is een domeinfout, maar de stream verstopt hem: <code>totals</code> ziet eruit als "per merchant", en dat leest als correct.</li>
+    <li><b>De dag dat een merchant een USD-rekening krijgt, stopt de hele run.</b> <code>toMap</code> zonder merge-functie gooit bij een dubbele sleutel een <code>IllegalStateException</code>: <code>Duplicate key MerchantId[value=m-42] (attempted merging values PayoutAccount[…] and PayoutAccount[…])</code>. Niet alleen m-42, maar alle merchants worden die dag niet uitbetaald. Let ook op de melding zelf: daarin staan beide rekeningen via hun <code>toString()</code>, dus IBAN's in je errorlog.</li>
+    <li><b>De verleidelijke fix maakt het erger.</b> <code>toMap(..., (a, b) -&gt; a)</code> laat de exception verdwijnen en kiest stil de eerste rekening. In onze run: de EUR-rekening, voor een bedrag waarin USD zit. De exception was het enige signaal dat de sleutel niet klopte.</li>
+    <li>Kleinere punten: de volgorde van het betaalbestand verschilt per run (iteratievolgorde van een <code>HashMap</code>), en een merchant zonder rekening levert een <code>Payout</code> met <code>null</code> op, die pas ergens anders een <code>NullPointerException</code> geeft.</li>
+  </ol>
+
+  <h3>De herschrijving</h3>
+<div class="diff">
+    <div class="diff-head">PayoutCalculator.java · na review</div>
+<pre><span>public List&lt;Payout&gt; calculate(List&lt;Transaction&gt; transactions) {</span><span>    Map&lt;PayoutKey, BigDecimal&gt; totals = transactions.stream()</span><span>            .filter(tx -&gt; tx.status() == Status.SETTLED)</span><span>            .collect(toMap(Transaction::payoutKey, Transaction::signedAmount, BigDecimal::add));</span><span></span><span>    var merchantIds = totals.keySet().stream().map(PayoutKey::merchantId).collect(toSet());</span><span>    Map&lt;PayoutKey, PayoutAccount&gt; accountByKey = accounts.findAllByMerchantIdIn(merchantIds).stream()</span><span>            .collect(toMap(PayoutAccount::payoutKey, Function.identity()));  // dubbel = datafout: mag falen</span><span></span><span>    return totals.entrySet().stream()</span><span>            .filter(e -&gt; e.getValue().signum() &gt; 0)</span><span>            .map(e -&gt; new Payout(accountFor(accountByKey, e.getKey()), e.getValue()))</span><span>            .sorted(comparing((Payout p) -&gt; p.account().iban()))</span><span>            .toList();</span><span>}</span><span></span><span>// record PayoutKey(MerchantId merchantId, Currency currency)</span><span>// accountFor gooit MissingPayoutAccountException(key) als de rekening ontbreekt</span></pre>
+  </div>
+  <p>Drie beslissingen, elk met een reden. De sleutel wordt <code>(merchant, valuta)</code>, want dat is wat er werkelijk wordt uitbetaald. <code>parallelStream()</code> verdwijnt: 200.000 <code>BigDecimal</code>-optellingen in een nachtelijke batch zijn geen bottleneck, en wie het toch parallel wil, kan dat nu veilig doen omdat de collector per thread een eigen map vult (in onze run gaf de parallelle <code>toMap</code> exact hetzelfde resultaat). En de <code>toMap</code> zonder merge-functie op de rekeningen blijft bewust staan: twee rekeningen voor dezelfde merchant en valuta is een datafout die de run moet stoppen. Zet er wel een eigen exception omheen als de IBAN's niet in de log mogen.</p>
+
+  <h3>Varianten voor de aggregatie, en hun prijs</h3>
+  <p>De kern is "som per sleutel". Er zijn vier redelijke manieren om dat te schrijven. Alle vier gaven op dezelfde 200.000 transacties dezelfde map.</p>
+  <div class="fixes">
+    <div>
+      <h4>A · <code>toMap</code> met merge-functie</h4>
+<pre class="snip">.collect(toMap(Transaction::payoutKey, Transaction::signedAmount, BigDecimal::add))</pre>
+      <p>Kortst als er één waarde per sleutel uitkomt. De merge-functie ís de aggregatie. <b>Prijs:</b> wie <code>toMap</code> leest, verwacht een unieke sleutel; de derde parameter is makkelijk te missen. Kies deze vorm als de aggregatie een simpele <code>BinaryOperator</code> is.</p>
+    </div>
+    <div>
+      <h4>B · <code>groupingBy</code> met downstream-collector</h4>
+<pre class="snip">.collect(groupingBy(Transaction::payoutKey,
+        reducing(BigDecimal.ZERO, Transaction::signedAmount, BigDecimal::add)))</pre>
+      <p>Zegt "groeperen" in het eerste woord, en schaalt naar andere aggregaties: <code>counting()</code>, <code>mapping(..., toSet())</code>, <code>teeing(...)</code>. <b>Prijs:</b> voor een simpele som wordt <code>reducing</code> met drie argumenten wollig. Gebruik <code>groupingBy(key, TreeMap::new, downstream)</code> als de volgorde ertoe doet; de standaardvariant geeft geen garantie over het maptype (in de praktijk een <code>HashMap</code>).</p>
+    </div>
+    <div>
+      <h4>C · Een gewone loop met <code>merge</code></h4>
+<pre class="snip">var totals = new HashMap&lt;PayoutKey, BigDecimal&gt;();
+for (var tx : transactions) {
+    if (tx.status() != Status.SETTLED) continue;
+    totals.merge(tx.payoutKey(), tx.signedAmount(), BigDecimal::add);
+}</pre>
+      <p>Even correct en voor veel lezers even helder. De mutatie is lokaal en ontsnapt niet. <b>Prijs:</b> niet parallelliseerbaar zonder herschrijving, en vier regels in plaats van drie. Een prima keuze zodra de loop méér moet doen: een vroege exit, een tweede accumulator, een checked exception.</p>
+    </div>
+    <div>
+      <h4>Niet doen · <code>summingDouble</code> op bedragen</h4>
+<pre class="snip">.collect(groupingBy(Transaction::payoutKey,
+        summingDouble(tx -&gt; tx.signedAmount().doubleValue())))</pre>
+      <p>Het kortst van allemaal, en fout voor geld. <code>double</code> kan 0,10 niet exact opslaan. <code>summingDouble</code> gebruikt een gecompenseerde sommatie (tien keer 0,10 gaf netjes <code>1.0</code>, waar een naïeve loop <code>0.9999999999999999</code> gaf), maar 0,10 + 0,20 gaf alsnog <code>0.30000000000000004</code>. Bedragen blijven <code>BigDecimal</code> of <code>long</code> in centen.</p>
+    </div>
+  </div>
+
+  <h3>Twee keuzes die je in bijna elke PR tegenkomt</h3>
+  <p><b>Twee aggregaten in één keer.</b> Captured en refunded totaal over dezelfde transacties. Met <code>teeing</code> in één pass:</p>
+  <div class="snip-pair">
+    <div><p class="snip-label">teeing</p>
+<pre class="snip">.collect(teeing(
+    filtering(tx -&gt; tx.type() == CAPTURE,
+        reducing(ZERO, Transaction::amount, BigDecimal::add)),
+    filtering(tx -&gt; tx.type() != CAPTURE,
+        reducing(ZERO, Transaction::amount, BigDecimal::add)),
+    Settlement::new));</pre></div>
+    <div><p class="snip-label">loop met twee accumulatoren</p>
+<pre class="snip">var captured = ZERO;
+var refunded = ZERO;
+for (var tx : settled) {
+    if (tx.type() == CAPTURE) captured = captured.add(tx.amount());
+    else refunded = refunded.add(tx.amount());
+}
+return new Settlement(captured, refunded);</pre></div>
+  </div>
+  <p>Beide geven hetzelfde. Hier wint de loop: één <code>if</code> in plaats van twee <code>filtering</code>-predicaten die elkaars complement moeten zijn (een vierde <code>Type</code> erbij en je moet in de teeing-variant twee plekken bijwerken). <code>teeing</code> verdient zijn plek als downstream binnen een <code>groupingBy</code>, waar je geen lokale variabelen hebt; zie de oefening.</p>
+  <p><b>Welke <code>toList</code>?</b> De IDE stelt voor om <code>collect(Collectors.toList())</code> te vervangen door <code>toList()</code>. Dat is geen gedragsneutrale refactoring:</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Aanroep</th><th>Wijzigbaar?</th><th><code>null</code>-elementen</th></tr></thead>
+    <tbody>
+      <tr><td><code>Stream.toList()</code> (16+)</td><td>Nee: <code>add</code> en <code>sort</code> gooien <code>UnsupportedOperationException</code></td><td>Toegestaan</td></tr>
+      <tr><td><code>Collectors.toList()</code></td><td>Geen garantie; in de praktijk een <code>ArrayList</code></td><td>Toegestaan</td></tr>
+      <tr><td><code>Collectors.toUnmodifiableList()</code></td><td>Nee</td><td><code>NullPointerException</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Zelfde soort valkuil: <code>sorted(c).findFirst()</code> waar <code>min(c)</code> volstaat. Het resultaat is gelijk, ook bij gelijke waarden (beide geven het eerste element in de bronvolgorde; nagespeeld), maar <code>sorted</code> kopieert en sorteert alles in O(n log n) om één element te vinden, en zegt minder duidelijk wat je bedoelt.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Een loop in plaats van een stream</b> als de logica een vroege <code>return</code> of <code>break</code> heeft, meerdere accumulatoren bijhoudt, een checked exception doorgeeft of met indexen of het vorige element werkt. Een stream die daarvoor een <code>AtomicInteger</code>, een array-truc of een <code>try/catch</code> in een lambda nodig heeft, is slechter, niet moderner. "Maak hier een stream van" zonder concreet leesvoordeel is geen comment waard.</li>
+    <li><b>Een sequentiële <code>forEach</code> die een lokale map vult.</b> Die is correct (nagespeeld: sequentieel klopt het totaal). Het is een loop in vermomming en een collector zegt het beter, maar dat is hooguit een <span class="sev nit">nit</span>. Het wordt pas een probleem als de map gedeeld is of de stream parallel.</li>
+    <li><b><code>peek</code> voor debug-logging.</b> Daar is hij voor bedoeld, volgens de Javadoc zelf. Het probleem begint als iets ervan afhangt: een teller, een auditregel, een statuswijziging.</li>
+    <li><b><code>toMap</code> zonder merge-functie</b> als een dubbele sleutel echt een datafout is. Dan is de exception gewenst gedrag. Vraag alleen of het falen van de hele run de bedoeling is, en of de melding geen gevoelige data bevat.</li>
+    <li><b>Een geneste stream</b> over een kleine, begrensde collectie (de vijf valuta's van een merchant). O(n·m) met m ≤ 5 is O(n).</li>
+    <li><b><code>parallel()</code></b> op een grote, goed splitsbare bron (een <code>ArrayList</code> of array), met CPU-werk, zonder gedeelde state en buiten het request-pad, nadat iemand heeft gemeten dat het helpt.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als het resultaat fout of niet-deterministisch is (gedeelde mutable state in een parallelle stream, geld als <code>double</code> in een uitbetaling, een side effect waar compliance op rekent dat niet draait) of als realistische data de hele run laat falen · <span class="sev major">major</span> bij O(n·m) op data die groeit, of een <code>toList()</code>-wissel terwijl een aanroeper de lijst wijzigt · <span class="sev minor">minor</span> of <span class="sev nit">nit</span> bij leesbaarheid: <code>forEach</code> naar een lokale map, <code>sorted().findFirst()</code>, een collector die een loop had moeten zijn · laat gaan bij stream-of-loop-voorkeur zonder concreet argument.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Geen <code>forEach</code> met side effects in een stream gebruiken, dat is niet functioneel. Graag een collector.</p><p style="color:var(--muted);font-size:14px">Klinkt als een stijlregel. Geen gevolg, geen bewijs, en de echte fout (de sleutel) blijft liggen. De auteur maakt er een collector van met <code>(a, b) -&gt; a</code> en alles is erger.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>forEach</code> op een <code>parallelStream()</code> schrijft vanuit meerdere threads in één <code>HashMap</code>. Bij 200k transacties krijg je per run een ander totaal of een <code>ConcurrentModificationException</code> (lokaal nagespeeld: geen enkele run van 20 klopte). De test met 10 transacties ziet dat niet.</p><p><b>Daarnaast:</b> de sleutel is alleen de merchant, dus EUR en USD worden bij elkaar opgeteld. De <code>toMap</code> op de rekeningen gooit zodra een merchant twee rekeningen heeft, en dan stopt de run voor iedereen.</p><p><b>Voorstel:</b> <code>.stream().collect(toMap(Transaction::payoutKey, Transaction::signedAmount, BigDecimal::add))</code> met <code>PayoutKey(merchant, currency)</code>, en de rekeningen ook op <code>PayoutKey</code>. Is <code>parallel</code> gemeten? Zo niet, laat hem weg.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout, en in dit spoor tellen ook stijl- en ontwerpbevindingen mee: zeg dan waaróm de herschrijving beter is. Context: het rapport draait één keer per dag, met zo'n 30.000 actieve merchants en 40.000 chargebacks. <code>AuditTrail.recordIncluded</code> schrijft naar het append-only compliance-auditlog (niet naar de database); de risk-afdeling moet per rapport kunnen aantonen welke chargebacks erin zaten. <code>ReportUploader</code> zet het bestand via SFTP klaar (2–20 s).</p>
+  <div class="diff">
+    <div class="diff-head">PR #431 · Dagelijks chargeback-rapport per merchant</div>
+<pre><span><span class="ln">1</span>@Service</span><span><span class="ln">2</span>public class ChargebackReportService {</span><span><span class="ln">3</span></span><span><span class="ln">4</span>    private static final int MIN_VOLUME = 100;   // onder dit aantal captures is de ratio ruis</span><span><span class="ln">5</span></span><span><span class="ln">6</span>    private final MerchantRepository merchants;</span><span><span class="ln">7</span>    private final ChargebackRepository chargebacks;</span><span><span class="ln">8</span>    private final PaymentRepository payments;</span><span><span class="ln">9</span>    private final ReportUploader uploader;</span><span><span class="ln">10</span>    private final AuditTrail auditTrail;</span><span><span class="ln">11</span></span><span><span class="ln">12</span>    // constructor-injectie weggelaten</span><span><span class="ln">13</span></span><span><span class="ln">14</span>    @Transactional(readOnly = true)</span><span><span class="ln">15</span>    public ReportSummary generate(LocalDate day) {</span><span><span class="ln">16</span>        List&lt;Merchant&gt; active = merchants.findActiveOn(day);</span><span><span class="ln">17</span>        List&lt;Chargeback&gt; cbs = chargebacks.findReceivedOn(day);</span><span><span class="ln">18</span>        Map&lt;MerchantId, Long&gt; captures = payments.countCapturesPerMerchant(day);</span><span><span class="ln">19</span></span><span><span class="ln">20</span>        List&lt;ReportRow&gt; rows = active.stream()</span><span><span class="ln">21</span>                .map(m -&gt; new ReportRow(</span><span><span class="ln">22</span>                        m.id(),</span><span><span class="ln">23</span>                        captures.getOrDefault(m.id(), 0L),</span><span><span class="ln">24</span>                        cbs.stream().filter(cb -&gt; cb.merchantId().equals(m.id())).count(),</span><span><span class="ln">25</span>                        cbs.stream().filter(cb -&gt; cb.merchantId().equals(m.id()))</span><span><span class="ln">26</span>                                .collect(Collectors.summingDouble(cb -&gt; cb.amount().doubleValue()))))</span><span><span class="ln">27</span>                .filter(row -&gt; row.chargebackCount() &gt; 0)</span><span><span class="ln">28</span>                .toList();</span><span><span class="ln">29</span></span><span><span class="ln">30</span>        long audited = cbs.stream()</span><span><span class="ln">31</span>                .peek(auditTrail::recordIncluded)</span><span><span class="ln">32</span>                .count();</span><span><span class="ln">33</span></span><span><span class="ln">34</span>        ReportRow worst = rows.stream()</span><span><span class="ln">35</span>                .sorted(Comparator.comparingDouble(ReportRow::ratio).reversed())</span><span><span class="ln">36</span>                .findFirst()</span><span><span class="ln">37</span>                .orElse(null);</span><span><span class="ln">38</span></span><span><span class="ln">39</span>        uploader.upload(day, CsvWriter.write(rows));</span><span><span class="ln">40</span>        return new ReportSummary(day, rows.size(), audited, worst);</span><span><span class="ln">41</span>    }</span><span><span class="ln">42</span></span><span><span class="ln">43</span>    public Optional&lt;ReportRow&gt; firstBreach(List&lt;ReportRow&gt; rows, double threshold) {</span><span><span class="ln">44</span>        for (ReportRow row : rows) {</span><span><span class="ln">45</span>            if (row.captures() &lt; MIN_VOLUME) {</span><span><span class="ln">46</span>                continue;</span><span><span class="ln">47</span>            }</span><span><span class="ln">48</span>            if (row.ratio() &gt; threshold) {</span><span><span class="ln">49</span>                return Optional.of(row);</span><span><span class="ln">50</span>            }</span><span><span class="ln">51</span>        }</span><span><span class="ln">52</span>        return Optional.empty();</span><span><span class="ln">53</span>    }</span><span><span class="ln">54</span>}</span><span><span class="ln">55</span></span><span><span class="ln">56</span>// ReportRow.java (nieuw)</span><span><span class="ln">57</span>public record ReportRow(MerchantId merchantId, long captures, long chargebackCount,</span><span><span class="ln">58</span>                        double chargebackAmount) {</span><span><span class="ln">59</span>    public double ratio() {</span><span><span class="ln">60</span>        return captures == 0 ? 0 : (double) chargebackCount / captures;</span><span><span class="ln">61</span>    }</span><span><span class="ln">62</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regels 30–32</b> <span class="sev blocker">blocker</span> De auditregels worden nooit geschreven. <code>cbs</code> is een <code>List</code>, er staat geen <code>filter</code> tussen, dus <code>count()</code> kan het antwoord uit de grootte van de bron halen en slaat de pijplijn over, inclusief <code>peek</code>. Nagespeeld op JDK 17 en 25: <code>audited</code> is 3, het aantal auditregels 0. Het rapport beweert dus dat alles geaudit is, terwijl het compliance-log leeg blijft. Het gedrag is ook fragiel: zet iemand er later een <code>filter</code> tussen, dan draait <code>peek</code> ineens wel. <b>Herschrijving:</b> maak de side effect expliciet met <code>cbs.forEach(auditTrail::recordIncluded)</code> en gebruik <code>cbs.size()</code> voor het aantal. <code>forEach</code> is de enige plek waar een side effect gegarandeerd draait, en de lezer ziet meteen dat hier iets gebeurt.</p>
+      <p><b>Regels 24–25</b> <span class="sev major">major</span> Per merchant twee keer door alle chargebacks lopen: 30.000 × 40.000 × 2 = 2,4 miljard <code>equals</code>-aanroepen per rapport, en dat groeit kwadratisch mee met het volume. <b>Herschrijving:</b> groepeer één keer, met beide aggregaten tegelijk. Hier past <code>teeing</code> wél, als downstream van <code>groupingBy</code>:</p>
+<pre class="snip">Map&lt;MerchantId, ChargebackStats&gt; stats = cbs.stream()
+        .collect(groupingBy(Chargeback::merchantId,
+                teeing(counting(),
+                       reducing(BigDecimal.ZERO, Chargeback::amount, BigDecimal::add),
+                       ChargebackStats::new)));
+
+List&lt;ReportRow&gt; rows = active.stream()
+        .filter(m -&gt; stats.containsKey(m.id()))
+        .map(m -&gt; new ReportRow(m.id(), captures.getOrDefault(m.id(), 0L), stats.get(m.id())))
+        .toList();</pre>
+      <p>Lineair, één pass over de chargebacks, en de <code>filter</code> op regel 27 wordt overbodig, omdat alleen merchants met chargebacks in <code>stats</code> staan. (<code>ReportRow</code> krijgt daarvoor een <code>ChargebackStats</code>-component in plaats van de losse <code>long</code> en <code>double</code>.) De lezer ziet nu "groepeer per merchant, tel en tel op" in plaats van een geneste stream die hij in zijn hoofd moet uitvoeren. Deze code is gecompileerd en gedraaid.</p>
+      <p><b>Regels 26 en 58</b> <span class="sev major">major</span> Bedragen als <code>double</code>. Nagespeeld: twee chargebacks van 0,10 en 0,20 geven <code>chargebackAmount = 0.30000000000000004</code>. In een CSV voor risk is dat een afwijking van een fractie van een cent, maar het type <code>ReportRow.chargebackAmount</code> is een API: de volgende die het optelt voor een boekingsregel erft de fout. Gebruik <code>BigDecimal</code> met <code>reducing</code> (zie hierboven). Waarom major en geen blocker: dit rapport betaalt niets uit; in een uitbetaling was het een blocker geweest.</p>
+      <p><b>Regels 14 en 39</b> <span class="sev minor">minor</span> <i>Uit module 1 (transacties).</i> De SFTP-upload draait binnen de <code>readOnly</code>-transactie, dus er staat 2–20 s een databaseconnectie vast terwijl er niets met de database gebeurt. Omdat het rapport één keer per dag draait, is het risico op een lege pool klein; daarom minor, geen blocker. Maar de transactie heeft geen functie na regel 18. Voorstel: haal de data op in een transactionele methode (of zonder transactie: het zijn drie losse reads), en upload daarbuiten. Wordt <code>generate</code> later ook via een endpoint aangeroepen, dan wordt dit major.</p>
+      <p><b>Regels 34–37</b> <span class="sev nit">nit</span> <code>sorted(...reversed()).findFirst()</code> is <code>max(comparingDouble(ReportRow::ratio))</code>. Waarom de herschrijving beter is: hij zegt wat je zoekt ("de grootste") in plaats van hoe je hem vindt, is O(n) in plaats van O(n log n) zonder kopie van de hele lijst, en geeft bij gelijke ratio's hetzelfde element terug (nagespeeld). Laat daarbij <code>orElse(null)</code> los en geef de <code>Optional</code> door aan <code>ReportSummary</code>; een <code>null</code> in een record verschuift de check naar elke lezer.</p>
+      <p><b>Regels 43–53</b> <span class="sev ok">geen probleem</span> De afleider: een gewone <code>for</code>-loop met <code>continue</code> en vroege <code>return</code>. De stream-variant (<code>filter(...).filter(...).findFirst()</code>) is even kort en geeft hetzelfde resultaat (nagespeeld), maar is niet beter. De loop laat de vroege exit en de reden voor het overslaan net zo duidelijk zien. Een comment "maak hier een stream van" kost de auteur tijd en jou geloofwaardigheid.</p>
+      <p><b>Regel 28</b> <span class="sev ok">geen probleem</span> <code>.toList()</code> levert een onwijzigbare lijst op, en dat is hier precies goed: <code>rows</code> wordt daarna alleen gelezen (stream, CSV, <code>size()</code>).</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · beoordelen</span></div>
+      <p class="situ">Twee versies van het inlezen van een betaalbestand. <code>PayoutInstruction.parse</code> gooit de checked <code>InvalidIbanException</code> met het regelnummer erin.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · loop</p>
+<pre class="snip">List&lt;PayoutInstruction&gt; parse(List&lt;String&gt; lines)
+        throws InvalidIbanException {
+    var result = new ArrayList&lt;PayoutInstruction&gt;();
+    for (int i = 0; i &lt; lines.size(); i++) {
+        result.add(PayoutInstruction.parse(lines.get(i), i + 1));
+    }
+    return result;
+}</pre></div>
+        <div><p class="snip-label">B · stream</p>
+<pre class="snip">List&lt;PayoutInstruction&gt; parse(List&lt;String&gt; lines) {
+    return IntStream.range(0, lines.size())
+            .mapToObj(i -&gt; {
+                try {
+                    return PayoutInstruction.parse(lines.get(i), i + 1);
+                } catch (InvalidIbanException e) {
+                    throw new RuntimeException(e);
+                }
+            })
+            .toList();
+}</pre></div>
+      </div>
+      <p class="ask">Welke versie keur je goed, en met welk argument?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A. De stream voegt hier niets toe en kost een contract.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>B moet de checked exception inpakken in een generieke <code>RuntimeException</code>. De aanroeper ziet niet meer dat een ongeldige IBAN een verwacht geval is, en een <code>catch (InvalidIbanException e)</code> hogerop vangt niets meer.</li>
+          <li>Het regelnummer maakt het indexlogica. <code>IntStream.range</code> plus <code>lines.get(i)</code> is een loop in vermomming.</li>
+          <li>Let op het gedragsverschil: A geeft een wijzigbare lijst terug, B een onwijzigbare. Een aanroeper die sorteert, breekt bij de "opschoning" van A naar B.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>suggestion:</b> hier zou ik de loop houden. De stream dwingt een <code>try/catch</code> in de lambda af die <code>InvalidIbanException</code> in een <code>RuntimeException</code> verpakt, waardoor de aanroeper het checked contract kwijtraakt. Met het regelnummer erbij is de loop ook gewoon leesbaarder.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · herkennen en herschrijven</span></div>
+      <p class="situ">Een batch zoekt de orders die opnieuw aangeboden moeten worden:</p>
+<pre class="snip">List&lt;OrderId&gt; retry = new ArrayList&lt;&gt;();
+orders.parallelStream()
+      .filter(Order::needsRetry)
+      .forEach(o -&gt; retry.add(o.id()));
+retryQueue.submitAll(retry);</pre>
+      <p class="ask">Wat gaat hier mis, en hoe herschrijf je het?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Meerdere threads doen tegelijk <code>add</code> op een <code>ArrayList</code>; herschrijf naar <code>.map(Order::id).toList()</code>.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>ArrayList</code> is niet thread-safe. Nagespeeld met 100.000 orders en 20 runs: de meeste runs eindigden in een <code>ArrayIndexOutOfBoundsException</code>, de rest gaf een lijst met de verkeerde grootte of met <code>null</code>-elementen. Orders vallen dus stil buiten de retry.</li>
+          <li><code>toList()</code> is een collector-achtige terminale stap: elke thread bouwt een eigen deel en die worden samengevoegd. Het resultaat had de goede grootte en stond zelfs in bronvolgorde, ook parallel.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Een <code>Collections.synchronizedList</code> om <code>retry</code> heen "werkt" ook, maar maakt van de parallelle stream een wachtrij voor één lock en laat de volgorde willekeurig. De vraag is eerder of <code>parallel</code> hier iets oplevert.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · kiezen</span></div>
+      <p class="situ">Refunds boven een limiet hebben een tweede paar ogen nodig:</p>
+<pre class="snip">Map&lt;Boolean, List&lt;Refund&gt;&gt; split = refunds.stream()
+        .collect(groupingBy(r -&gt; r.amount().compareTo(FOUR_EYES_LIMIT) &gt; 0));
+split.get(true).forEach(fourEyes::request);
+split.get(false).forEach(refundExecutor::execute);</pre>
+      <p class="ask">Wat gebeurt er op een dag zonder grote refunds, en welke collector hoort hier?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Een <code>NullPointerException</code> op <code>split.get(true)</code>; gebruik <code>partitioningBy</code>.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>groupingBy</code> maakt alleen sleutels aan voor waarden die voorkomen. Zonder grote refunds bestaat <code>true</code> niet (nagespeeld: <code>get(true)</code> is <code>null</code>).</li>
+          <li><code>partitioningBy</code> garandeert volgens de Javadoc altijd beide sleutels, met een lege lijst als er niets in valt.</li>
+          <li>Erger dan de NPE: de normale refunds op de regel erna worden die dag ook niet uitgevoerd.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>groupingBy</code> op een boolean levert geen <code>true</code>-sleutel op als er geen enkele refund boven de limiet zit, en dan gooit regel 3 een NPE en draaien de normale refunds ook niet. <code>partitioningBy</code> heeft altijd beide sleutels.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · verdedigen</span></div>
+      <p class="situ">Een opschoon-PR vervangt op 140 plekken <code>.collect(Collectors.toList())</code> door <code>.toList()</code>, met als toelichting: "IntelliJ-inspectie, puur cosmetisch."</p>
+      <p class="ask">Wat controleer je voordat je deze PR goedkeurt?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Of een aanroeper de teruggegeven lijst wijzigt, want <code>toList()</code> is onwijzigbaar.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>Collectors.toList()</code> geeft in de praktijk een <code>ArrayList</code>. Code die daarna <code>add</code>, <code>remove</code> of <code>sort</code> doet, werkt nu en gooit straks een <code>UnsupportedOperationException</code> (nagespeeld voor <code>add</code> en <code>sort</code>). Dat kan drie lagen verderop gebeuren, in een andere klasse.</li>
+          <li><code>null</code>-elementen zijn geen probleem: <code>Stream.toList()</code> laat ze toe, net als <code>Collectors.toList()</code>. <code>toUnmodifiableList()</code> zou wel met een NPE falen.</li>
+          <li>De wijziging is op zich een verbetering: onwijzigbaar is het betere standaardgedrag. Alleen "puur cosmetisch" klopt niet.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>question:</b> <code>toList()</code> is onwijzigbaar, <code>Collectors.toList()</code> in de praktijk niet. Heb je gecontroleerd dat geen van de 140 resultaten later wordt aangepast of gesorteerd? Anders liever in kleinere stappen, met tests rond de plekken waar de lijst de methode verlaat.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">In een REST-controller, met de toelichting "parallel maakt het 8× sneller":</p>
+<pre class="snip">@GetMapping("/orders/status")
+List&lt;PaymentStatus&gt; statuses(@RequestParam List&lt;UUID&gt; orderIds) {
+    return orderIds.parallelStream()
+            .map(pspClient::fetchStatus)    // HTTP-call naar de PSP, 100–800 ms
+            .toList();
+}</pre>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev major">major</span>: blokkerende I/O op de gedeelde common pool, in het request-pad.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>Parallelle streams draaien op <code>ForkJoinPool.commonPool()</code> plus de aanroepende thread (nagespeeld: de threads heetten <code>ForkJoinPool.commonPool-worker-N</code> en <code>main</code>). Die pool is gedeeld door de hele JVM en heeft standaard aantal cores − 1 threads (7 op een machine met 8).</li>
+          <li>Tien gelijktijdige requests met elk 50 ID's houden die paar threads honderden milliseconden bezet met wachten op HTTP. Elke andere parallelle stream in de applicatie staat dan stil.</li>
+          <li>De "8×" hangt af van het aantal cores, niet van wat de PSP aankan. Er is geen grens op het aantal gelijktijdige calls per request en geen timeout. Geen blocker, omdat er geen data misgaat, maar wel iets dat onder belasting omvalt.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>parallelStream()</code> met een HTTP-call per element draait op de gedeelde common pool (cores − 1 threads). Onder belasting blokkeren deze calls alle andere parallelle streams in de JVM, en het aantal gelijktijdige PSP-calls is niet begrensd. Voorstel: een virtual-thread-executor met een <code>Semaphore</code> als grens, of <code>Gatherers.mapConcurrent</code> (Java 24+, zie F5). Plus een timeout op de client.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/stream/package-summary.html">package <code>java.util.stream</code></a>: de secties "Side-effects", "Stateless behaviors" en "Mutable reduction". Daar staat dat lambda's niet gegarandeerd worden aangeroepen, en waarom <code>collect</code> parallel veilig is.</li>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/stream/Stream.html"><code>Stream</code></a>: de API-notes bij <code>count()</code> en <code>peek()</code>, en de beschrijving van <code>toList()</code>.</li>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/stream/Collectors.html"><code>Collectors</code></a>: <code>toMap</code> (dubbele sleutels), <code>groupingBy</code> (geen garantie over het maptype), <code>partitioningBy</code> en <code>teeing</code>.</li>
+    <li>Joshua Bloch, <i>Effective Java</i>, 3e druk, hoofdstuk 7 "Lambdas and Streams": Item 45 (streams met beleid gebruiken), Item 46 (side-effect-vrije functies in streams; het frequentietabel-voorbeeld is dit uitgewerkte voorbeeld in het klein) en Item 48 (voorzichtig met parallelle streams). De codevoorbeelden staan in de <a href="https://github.com/jbloch/effective-java-3e-source-code">broncode-repository bij het boek</a>.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>
