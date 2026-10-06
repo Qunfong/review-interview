@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Optional en afwezigheid · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module zie je in een diff wanneer Optional afwezigheid helder maakt en wanneer het kosten, side effects of NPE's verstopt, herschrijf je een null-cascade naar de beste variant, en kies je tussen Optional en JSpecify @Nullable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;min-width:0}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+.fixes .snip{margin:8px 0}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+
+/* Aanvulling voor deze module: keuzetabel */
+.table-wrap{margin-top:16px;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table.choice{border-collapse:collapse;width:100%;font-size:15px}
+table.choice th,table.choice td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+table.choice tr:last-child td{border-bottom:0}
+table.choice th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+table.choice td:first-child{min-width:150px}
+table.choice td:nth-child(2){min-width:220px}
+</style>
+</head>
+<body>
+<main data-module="optional-en-afwezigheid">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module F3 · D1 Modern Java</p>
+  <h1>Optional en afwezigheid</h1>
+  <p class="lede">Eén woord verschil, <code>orElse</code> in plaats van <code>orElseGet</code>, en elke terugkerende klant krijgt bij de checkout een nieuw klantaccount bij de betaalprovider. <code>Optional</code> maakt afwezigheid zichtbaar, maar is gewone Java: argumenten worden eerst uitgerekend, en een verkeerd gekozen methode verstopt kosten, side effects of een <code>NullPointerException</code>.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 · Spring Boot 4 (Framework 7) · JSpecify 1.0</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>In een diff goed en fout gebruik van <code>Optional</code> <b>herkennen</b>: returntype ja; veld, parameter, collectie-element en <code>Optional&lt;List&gt;</code> nee; <code>Optional.of</code> op een waarde die <code>null</code> kan zijn; <code>get()</code> na <code>isPresent()</code>.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span><b>Voorspellen</b> wanneer een argument wordt uitgerekend (<code>orElse</code> vs <code>orElseGet</code>, <code>or</code>, <code>orElseThrow</code>) en wat <code>map</code> en <code>flatMap</code> met <code>null</code> doen, en de verborgen kosten of side effects benoemen.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span>Een null-cascade of <code>isPresent</code>/<code>get</code>-code <b>herschrijven</b> naar de beste variant (Optional-keten, guard clause, ander model) en die keuze <b>verdedigen</b> op leesbaarheid, correctheid en kosten.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span><b>Kiezen</b> tussen <code>Optional</code> en JSpecify <code>@Nullable</code> in een Spring Framework 7-codebase, de <b>zwaarte inschatten</b> en daar een reviewcomment over schrijven.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li><code>customers.findById(id).orElse(createDefault())</code>: in welke gevallen draait <code>createDefault()</code>?</li>
+      <li>Wat geeft <code>Optional.of(order).map(Order::getVoucher)</code> als <code>getVoucher()</code> <code>null</code> teruggeeft: een NPE, <code>Optional[null]</code> of iets anders?</li>
+      <li>Je zet <code>@Nullable</code> van JSpecify op een parameter en compileert met gewone <code>javac</code>. Wat controleert de compiler nu?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p><code>Optional</code> is geen taalconstructie maar een gewone <code>final</code> klasse met een veld <code>value</code> dat wel of niet <code>null</code> is. Alles wat je ermee doet, volgt de normale regels van Java. De belangrijkste: <b>Java rekent argumenten uit vóórdat de methode wordt aangeroepen</b> (strict evaluation). Daaruit volgt bijna elke valkuil in deze module.</p>
+  <ul>
+    <li><b><code>orElse(T other)</code></b> krijgt een <em>waarde</em>. Staat er <code>orElse(registerCustomer(cmd))</code>, dan draait <code>registerCustomer</code> altijd, ook als de Optional gevuld is. Het resultaat wordt dan weggegooid; de side effects (HTTP-call, <code>INSERT</code>, bericht) niet.</li>
+    <li><b><code>orElseGet(Supplier)</code></b>, <b><code>or(Supplier)</code></b> en <b><code>orElseThrow(Supplier)</code></b> krijgen een <em>functie</em>. Die wordt alleen aangeroepen als de Optional leeg is.</li>
+    <li><b><code>map(f)</code></b> pakt het resultaat in met <code>ofNullable</code>: geeft <code>f</code> <code>null</code> terug, dan krijg je <code>Optional.empty()</code>, geen exception. Daarom kun je een keten van getters die <code>null</code> kunnen geven veilig met <code>map</code> aflopen.</li>
+    <li><b><code>flatMap(f)</code></b> verwacht dat <code>f</code> zelf een <code>Optional</code> teruggeeft. Geeft <code>f</code> <code>null</code> terug, dan volgt een NPE. Hetzelfde geldt voor een <code>or</code>-supplier die <code>null</code> teruggeeft.</li>
+    <li><b><code>Optional.of(x)</code></b> gooit direct een NPE als <code>x</code> <code>null</code> is. Het is een bewering ("dit is nooit null"), geen conversie. <code>ofNullable</code> is de conversie.</li>
+    <li><b><code>orElseThrow()</code></b> zonder argument en <b><code>get()</code></b> gooien allebei <code>NoSuchElementException: No value present</code>. De Javadoc noemt <code>orElseThrow()</code> de voorkeursvorm; <code>get()</code> is niet deprecated, maar de naam suggereert dat het altijd goed gaat.</li>
+  </ul>
+  <figure>
+    <svg viewBox="0 0 400 560" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee uitvoeringspaden voor een terugkerende klant. A, orElse: eerst findByShopperReference, dan draait registerCustomer met PSP-call en INSERT, en pas daarna kiest orElse de bestaande klant; de nieuwe klant wordt weggegooid maar de side effects blijven. B, orElseGet: de lambda wordt alleen aangemaakt, en orElseGet roept hem nooit aan omdat de Optional gevuld is. Alleen bij een lege Optional draait registerCustomer.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="arr-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+        <marker id="arr-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+      </defs>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--blocker)">A · .orElse(registerCustomer(cmd))</text>
+      <text x="0" y="36" font-size="12" style="fill:var(--muted)">terugkerende klant · argument wordt eerst uitgerekend</text>
+
+      <rect x="0" y="50" width="400" height="44" rx="6" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="12" y="77" font-size="13" class="mono" style="fill:currentColor">1  findByShopperReference(ref)</text>
+      <rect x="284" y="61" width="106" height="22" rx="11" style="fill:var(--accent-soft)"/>
+      <text x="337" y="76" font-size="11" text-anchor="middle" class="mono" style="fill:var(--accent)">Optional[klant]</text>
+      <line x1="200" y1="94" x2="200" y2="110" style="stroke:currentColor" marker-end="url(#arr)"/>
+
+      <rect x="0" y="112" width="400" height="60" rx="6" style="fill:var(--del);stroke:var(--blocker);stroke-width:2"/>
+      <text x="12" y="137" font-size="13" class="mono" style="fill:currentColor">2  registerCustomer(cmd)</text>
+      <text x="30" y="158" font-size="12" font-weight="600" style="fill:var(--blocker)">PSP-call + INSERT · draait altijd</text>
+      <line x1="200" y1="172" x2="200" y2="188" style="stroke:currentColor" marker-end="url(#arr)"/>
+
+      <rect x="0" y="190" width="400" height="60" rx="6" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="12" y="215" font-size="13" class="mono" style="fill:currentColor">3  .orElse(nieuweKlant)</text>
+      <text x="30" y="236" font-size="12" style="fill:currentColor">gevuld → bestaande klant; nieuwe weggegooid</text>
+      <text x="200" y="272" font-size="12" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">het object is weg, de side effects niet</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="318" font-size="15" font-weight="600" style="fill:var(--ok)">B · .orElseGet(() -&gt; registerCustomer(cmd))</text>
+      <text x="0" y="338" font-size="12" style="fill:var(--muted)">alleen een functie doorgegeven · aangeroepen bij leeg</text>
+
+      <rect x="0" y="352" width="400" height="44" rx="6" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="12" y="379" font-size="13" class="mono" style="fill:currentColor">1  findByShopperReference(ref)</text>
+      <rect x="284" y="363" width="106" height="22" rx="11" style="fill:var(--accent-soft)"/>
+      <text x="337" y="378" font-size="11" text-anchor="middle" class="mono" style="fill:var(--accent)">Optional[klant]</text>
+      <line x1="200" y1="396" x2="200" y2="412" style="stroke:currentColor" marker-end="url(#arr)"/>
+
+      <rect x="0" y="414" width="400" height="44" rx="6" style="fill:none;stroke:var(--muted);stroke-dasharray:5 4"/>
+      <text x="12" y="441" font-size="13" class="mono" style="fill:var(--muted)">2  lambda aangemaakt, niet uitgevoerd</text>
+      <line x1="200" y1="458" x2="200" y2="474" style="stroke:currentColor" marker-end="url(#arr)"/>
+
+      <rect x="0" y="476" width="400" height="44" rx="6" style="fill:var(--surface);stroke:var(--ok);stroke-width:2"/>
+      <text x="12" y="503" font-size="13" class="mono" style="fill:currentColor">3  .orElseGet(supplier)</text>
+      <text x="300" y="503" font-size="12" font-weight="600" style="fill:var(--ok)">gevuld → klant</text>
+      <path d="M90,520 V542 H118" style="fill:none;stroke:var(--muted)" marker-end="url(#arr-muted)"/>
+      <text x="124" y="546" font-size="12" style="fill:var(--muted)">leeg → supplier.get() → registerCustomer</text>
+    </svg>
+    <figcaption>Dezelfde regel code, twee keer gelezen. In A staat <code>registerCustomer(cmd)</code> als argument en wordt dus uitgevoerd vóór <code>orElse</code> iets kan beslissen. In B is het argument een lambda; <code>orElseGet</code> beslist eerst en roept hem alleen bij een lege Optional aan.</figcaption>
+  </figure>
+
+  <h3>Twee manieren om afwezigheid te typeren</h3>
+  <p>Een senior reviewer ziet <code>Optional</code> niet als vervanging van <code>null</code>, maar als één van twee gereedschappen. De Javadoc van <code>Optional</code> is daar duidelijk over: bedoeld als <em>"method return type where there is a clear need to represent 'no result'"</em>.</p>
+  <div class="fixes">
+    <div>
+      <h4><code>Optional&lt;T&gt;</code>: een object</h4>
+      <p>Bestaat tijdens runtime. Dwingt de <em>aanroeper</em> om iets met afwezigheid te doen, zonder tooling. Prijs: een extra object per aanroep, niet <code>Serializable</code> (een veld van dit type breekt Java-serialisatie), geen JPA-attribuuttype, en een <code>Optional</code>-variabele kan zelf nog steeds <code>null</code> zijn. Past bij: publieke returntypes van finders en lookups.</p>
+    </div>
+    <div>
+      <h4>JSpecify <code>@Nullable</code>: een type-annotatie</h4>
+      <p><code>org.jspecify.annotations.Nullable</code>, met <code>@NullMarked</code> in <code>package-info.java</code> zodat alles zonder annotatie non-null is. Spring Framework 7 doet precies dat in zijn eigen packages; <code>org.springframework.lang.Nullable</code> is sinds 7.0 deprecated. Geen runtimekosten, maar <b>gewone <code>javac</code> controleert niets</b>: je hebt NullAway (in de build) of de IDE nodig. Past bij: velden, parameters, record-componenten, private methoden.</p>
+    </div>
+  </div>
+  <p>Twee details die je in een Spring 7-review tegenkomt:</p>
+  <ul>
+    <li><b>Plaatsing.</b> <code>@Nullable</code> is een <code>TYPE_USE</code>-annotatie en hoort direct vóór het type: <code>private @Nullable Instant settledAt</code>. Bij een volledig gekwalificeerd type moet hij ná de laatste punt: <code>java.time.@Nullable Instant</code>. <code>@Nullable java.time.Instant</code> compileert niet.</li>
+    <li><b>Spring Data 4 handhaaft het tijdens runtime.</b> Staat een repository-interface in een <code>@NullMarked</code> package, dan gooit een finder met returntype <code>PspCustomer</code> (zonder <code>@Nullable</code>) een <code>EmptyResultDataAccessException</code> als er niets gevonden wordt, en een <code>null</code>-argument geeft een <code>IllegalArgumentException</code>. Met <code>@Nullable PspCustomer</code> krijg je <code>null</code>, met <code>Optional&lt;PspCustomer&gt;</code> een lege Optional. Het returntype is dus een contract dat het framework afdwingt.</li>
+  </ul>
+  <div class="callout"><p><b>Geverifieerd:</b> het gedrag van <code>Optional</code> in deze module is nagespeeld met JDK 25.0.4 (Temurin): <code>orElse</code> roept het argument ook bij een gevulde Optional aan, <code>orElseGet</code> niet; <code>map</code> naar <code>null</code> geeft <code>Optional.empty</code>; <code>flatMap</code> naar <code>null</code> en <code>Optional.of(null)</code> geven een NPE; <code>orElseThrow()</code> en <code>get()</code> gooien <code>NoSuchElementException: No value present</code>; <code>Optional</code> is niet <code>Serializable</code>. Dat <code>javac</code> niets doet met <code>@Nullable</code> en dat de gekwalificeerde plaatsing een compileerfout geeft, is met <code>javac</code> 25 en JSpecify 1.0.0 getest. Het Spring Data-gedrag komt uit de broncode van Spring Data Commons 4.1.1 en de referentiedocumentatie.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>Een checkout. Elke shopper moet bij de betaalprovider (PSP) een klant-id hebben, zodat opgeslagen kaarten en terugkerende betalingen aan die klant hangen. De developer schrijft een find-or-create in één expressie. Er staat een unique constraint op <code>psp_customer.shopper_reference</code>.</p>
+  <div class="diff">
+    <div class="diff-head">CheckoutService.java</div>
+<pre><span>@Service</span><span>public class CheckoutService {</span><span></span><span>    private final PspCustomerRepository customers;</span><span>    private final PaymentRepository payments;</span><span>    private final PspClient psp;</span><span></span><span>    // constructor-injectie weggelaten</span><span></span><span class="a">+   @Transactional</span><span class="a">+   public Payment startCheckout(CheckoutCommand cmd) {</span><span class="a">+       PspCustomer customer = customers.findByShopperReference(cmd.shopperReference())</span><span class="a">+               .orElse(registerCustomer(cmd));</span><span class="a">+       return payments.save(Payment.pending(cmd.orderId(), customer.pspCustomerId(), cmd.amount()));</span><span class="a">+   }</span><span class="a">+</span><span class="a">+   private PspCustomer registerCustomer(CheckoutCommand cmd) {</span><span class="a">+       String pspCustomerId = psp.createCustomer(cmd.shopperReference(), cmd.email());   // HTTP</span><span class="a">+       return customers.save(new PspCustomer(cmd.shopperReference(), pspCustomerId));</span><span class="a">+   }</span><span>}</span></pre>
+  </div>
+  <p>Stap voor stap, voor een klant die vorige week ook al bestelde:</p>
+  <ol>
+    <li><code>findByShopperReference</code> vindt de klant: <code>Optional[klant]</code>.</li>
+    <li>Voordat <code>orElse</code> wordt aangeroepen, rekent Java het argument uit: <code>registerCustomer(cmd)</code>. De PSP maakt een <em>tweede</em> klant aan voor dezelfde shopper.</li>
+    <li><code>customers.save(...)</code> wil een tweede rij met dezelfde <code>shopper_reference</code> opslaan. Bij een database-gegenereerd id gebeurt de <code>INSERT</code> direct, anders bij de flush vóór de commit. Hoe dan ook: de unique constraint slaat aan, de transactie rolt terug, de checkout faalt.</li>
+    <li>Resultaat: <b>elke terugkerende klant</b> kan niet afrekenen, en bij de PSP staat per poging een verweesde klant. Nieuwe klanten merken niets, want daar is de Optional leeg en is het eager uitrekenen toevallig juist.</li>
+  </ol>
+  <p>Zonder unique constraint is het niet beter: dan ontstaan dubbele rijen, en de volgende <code>findByShopperReference</code> met returntype <code>Optional</code> gooit <code>IncorrectResultSizeDataAccessException</code> omdat er meer dan één resultaat is.</p>
+  <p>Waarom de tests groen zijn: de test "nieuwe klant" gaat door het lege pad. De test "bestaande klant" mockt <code>psp</code> en <code>customers</code>, controleert dat de teruggegeven klant de bestaande is, en dat klopt. Alleen <code>verify(psp, never()).createCustomer(any(), any())</code>, of een integratietest met de constraint, laat het zien.</p>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · <code>orElseGet(() -&gt; registerCustomer(cmd))</code></h4>
+      <p>De kleinste fix en de juiste eerste stap: <code>registerCustomer</code> draait alleen bij een lege Optional. <b>Wat blijft:</b> de HTTP-call naar de PSP zit binnen de transactie (een databaseconnectie staat vast tijdens de call, zie <a href="transacties-en-proxies.html">module 1</a>), en twee gelijktijdige eerste checkouts van dezelfde shopper zien allebei een lege Optional en maken allebei een klant aan (check-then-act).</p>
+    </div>
+    <div>
+      <h4>B · Find-or-create idempotent maken aan de bron</h4>
+      <p>Geef de PSP-call een idempotency key (bijv. de <code>shopperReference</code>), zodat een tweede <code>createCustomer</code> dezelfde klant teruggeeft. Laat de unique constraint de race beslissen: verliest jouw <code>INSERT</code>, lees dan de winnaar opnieuw. <b>Prijs:</b> meer code, en een valkuil uit module 1: een <code>DataIntegrityViolationException</code> binnen de checkout-transactie vangen helpt niet, want de transactie is dan al onbruikbaar. Het opnieuw lezen moet buiten die transactie, of je gebruikt een native <code>INSERT … ON CONFLICT DO NOTHING</code> (PostgreSQL).</p>
+    </div>
+    <div>
+      <h4>C · De vraag uit het checkout-pad halen</h4>
+      <p>Maak de PSP-klant aan bij registratie (via een event na de commit) en laat de checkout alleen lezen: <code>.orElseThrow(() -&gt; new CustomerNotOnboardedException(ref))</code>. De checkout heeft dan geen remote side effect meer. <b>Prijs:</b> gastbestellingen hebben een eigen pad nodig, en je moet de situatie afhandelen waarin het event nog niet verwerkt is.</p>
+    </div>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix A · CheckoutService.java</div>
+<pre><span>        PspCustomer customer = customers.findByShopperReference(cmd.shopperReference())</span><span class="d">-               .orElse(registerCustomer(cmd));</span><span class="a">+               .orElseGet(() -&gt; registerCustomer(cmd));   // alleen als de klant nog niet bestaat</span></pre>
+  </div>
+
+  <h3>Welke methode zegt wat je bedoelt</h3>
+  <p>De meeste Optional-bevindingen in een review zijn geen bugs maar een methode die iets anders zegt dan de auteur bedoelt. Lees de keten als een zin; de juiste methode maakt de bedoeling zichtbaar.</p>
+  <div class="table-wrap">
+    <table class="choice">
+      <thead><tr><th>Bedoeling</th><th>Schrijf</th><th>Let op</th></tr></thead>
+      <tbody>
+        <tr><td>Waarde, anders een vaste default</td><td><code>.orElse(Currency.EUR)</code></td><td>Alleen met een constante, een al berekende waarde of een goedkope pure getter.</td></tr>
+        <tr><td>Waarde, anders iets berekenen</td><td><code>.orElseGet(() -&gt; load(id))</code></td><td>Alles met I/O, allocatie van betekenis of een side effect.</td></tr>
+        <tr><td>Waarde, anders een andere bron die ook leeg kan zijn</td><td><code>.or(() -&gt; archive.find(id))</code></td><td>Blijft een <code>Optional</code>; de supplier mag geen <code>null</code> teruggeven.</td></tr>
+        <tr><td>Afwezig is een fout</td><td><code>.orElseThrow(() -&gt; new PaymentNotFoundException(id))</code></td><td>Kaal <code>orElseThrow()</code> is prima als afwezigheid een programmeerfout is (invariant), niet op een API-grens.</td></tr>
+        <tr><td>Iets doen in beide gevallen</td><td><code>.ifPresentOrElse(this::notify, this::logMissing)</code></td><td>Alleen voor side effects zonder resultaat; anders <code>map</code> + <code>orElse…</code>.</td></tr>
+        <tr><td>Optionals in een stream</td><td><code>.flatMap(Optional::stream)</code></td><td>Kijk of elke <code>Optional</code> een query is: dan hoort er één bulk-query.</td></tr>
+        <tr><td>Alleen een default voor <code>null</code></td><td><code>Objects.requireNonNullElse(x, "NL")</code></td><td>Geen <code>Optional.ofNullable(x).orElse(…)</code> als enige doel: dat is een <code>if</code> met een allocatie.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Tweede probleem: de null-cascade, vier varianten</h3>
+  <p>Voor de btw-berekening heb je het land van het factuuradres nodig; gastbestellingen hebben geen <code>Customer</code>, en niet elke klant heeft een factuuradres. Valt het weg, dan geldt het verzendland. Vier manieren om dat op te schrijven:</p>
+  <div class="fixes">
+    <div>
+      <h4>1 · Cascade van null-checks</h4>
+<pre class="snip">String country = null;
+if (order.customer() != null
+        &amp;&amp; order.customer().billingAddress() != null) {
+    country = order.customer().billingAddress().countryCode();
+}
+if (country == null) {
+    country = order.shippingCountry();
+}</pre>
+      <p>Correct, maar de bedoeling ("factuurland, anders verzendland") moet je reconstrueren. Getters worden twee keer aangeroepen, en een mutable lokale variabele die in twee takken wordt gezet nodigt uit tot fouten bij de volgende wijziging.</p>
+    </div>
+    <div>
+      <h4>2 · Optional-keten</h4>
+<pre class="snip">return Optional.ofNullable(order.customer())
+        .map(Customer::billingAddress)
+        .map(Address::countryCode)
+        .orElseGet(order::shippingCountry);</pre>
+      <p>Leest als het pad dat je zoekt, met de fallback aan het eind. Werkt omdat <code>map</code> een <code>null</code>-resultaat omzet in een lege Optional. Hier zou <code>orElse(order.shippingCountry())</code> ook prima zijn (goedkope getter); <code>orElseGet</code> maakt de keuze alleen expliciet. <b>Prijs:</b> een paar kortlevende objecten, verwaarloosbaar buiten een hot loop; en zodra er logica tussen de stappen komt (loggen, een tweede fallback), wordt een keten snel slechter leesbaar dan variant 3.</p>
+    </div>
+    <div>
+      <h4>3 · Guard clauses in een eigen methode</h4>
+<pre class="snip">private static String vatCountry(Order order) {
+    Customer customer = order.customer();
+    if (customer == null || customer.billingAddress() == null) {
+        return order.shippingCountry();
+    }
+    return customer.billingAddress().countryCode();
+}</pre>
+      <p>Even helder als 2, met een naam die de bedoeling draagt, en makkelijk uit te breiden met een extra regel of een debugger-breakpoint. Voor een private helper vaak de beste keuze. Een lambda kan niet <code>return</code>en uit de omliggende methode en geen checked exception gooien; gewone control flow wel. <b>Maar let op:</b> deze versie is níét equivalent. Heeft een adres geen <code>countryCode</code>, dan vallen 1 en 2 terug op het verzendland en geeft 3 <code>null</code> terug. Bij een herschrijving in review controleer je dus elk <code>null</code>-pad, niet alleen het gelukkige pad.</p>
+    </div>
+    <div>
+      <h4>4 · Het model laten zeggen wat waar is</h4>
+<pre class="snip">// Order.java, package is @NullMarked
+public String vatCountry() {
+    return billingAddress()          // Optional&lt;Address&gt;
+            .map(Address::countryCode)
+            .orElse(shippingCountry);
+}</pre>
+      <p>De echte vraag van een senior: waarom mag het hier <code>null</code> zijn? Als <code>Order</code> zelf weet hoe het btw-land bepaald wordt, schrijft geen enkele aanroeper de cascade nog. Velden blijven <code>@Nullable</code>, de publieke getter geeft een <code>Optional</code>. <b>Prijs:</b> een wijziging in het domeinmodel; niet altijd binnen de scope van de PR, wel een goede <code>suggestion</code>.</p>
+    </div>
+  </div>
+  <p>In een review is variant 1 geen fout, maar een <span class="sev nit">nit</span> of <span class="sev minor">minor</span> afhankelijk van hoe vaak dit patroon terugkomt. Stel 2 of 3 voor, en noem 4 als de cascade op meer plekken staat: dan is het een modelprobleem, geen stijlprobleem.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b><code>orElse</code> met een goedkope, pure expressie.</b> <code>orElse(BigDecimal.ZERO)</code>, <code>orElse(List.of())</code>, <code>orElse(merchant.defaultCurrency())</code> op een gewone getter. Het argument wordt uitgerekend, maar dat kost niets en verandert niets. <code>orElseGet</code> eisen is hier ruis. Ook <code>orElse(null)</code> is prima op de grens naar een <code>@Nullable</code>-veld of een API die <code>null</code> verwacht.</li>
+    <li><b>Een simpele <code>if (x == null) return …;</code> in een private methode.</b> <code>Optional</code> is geen verplichting. Wie een guard clause vervangt door <code>Optional.ofNullable(x).ifPresent(...)</code> maakt de code langer en de control flow onduidelijker.</li>
+    <li><b><code>Optional</code> als parameter op een frameworkgrens.</b> Spring MVC ondersteunt <code>@RequestParam Optional&lt;String&gt; status</code>. Dat is de grens waar afwezigheid binnenkomt; een <code>@Nullable String</code> is daar even goed. Het bezwaar tegen Optional-parameters geldt voor je eigen interne API's, waar elke aanroeper <code>Optional.empty()</code> of <code>Optional.of(...)</code> moet gaan bouwen.</li>
+    <li><b><code>isEmpty()</code> + vroege return, gevolgd door <code>orElseThrow()</code>.</b> Als de lege tak meerdere regels werk doet (loggen, metric, ander resultaat), is <code>if (found.isEmpty()) { …; return …; }</code> leesbaarder dan dezelfde logica in een lambda. Dat is geen <code>isPresent</code>/<code>get</code>-antipatroon; het antipatroon is <code>if (opt.isPresent()) return opt.get().x(); else return y;</code>, wat gewoon <code>map(…).orElse(y)</code> is.</li>
+    <li><b>Kaal <code>orElseThrow()</code> waar afwezigheid onmogelijk is.</b> Bijvoorbeeld direct na een <code>save</code> in dezelfde transactie, of op <code>stream.max(...)</code> over een lijst waarvan je net hebt gecontroleerd dat hij niet leeg is. Een eigen exception zou daar een situatie beschrijven die niet bestaat.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als het argument van <code>orElse</code> een side effect heeft dat geld, data of een externe partij raakt (save, HTTP, bericht), of als <code>Optional.of</code> op een reëel <code>null</code>-pad in een betaalflow staat · <span class="sev major">major</span> bij een NPE- of kostenrisico zonder datagevolg (<code>orElse(dureQuery())</code> op een hot path, <code>Optional.of</code> op een nullable veld in een leespad) · <span class="sev minor">minor</span> voor ontwerpkeuzes die de aanroeper belasten (<code>Optional&lt;List&gt;</code>, Optional-parameter of -veld in eigen code, kaal <code>orElseThrow()</code> op een API-grens) · <span class="sev nit">nit</span> voor <code>isPresent</code>/<code>get</code> en cascades die correct zijn maar beter kunnen · laat gaan bij <code>orElse</code> met een constante.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Gebruik <code>orElseGet</code> i.p.v. <code>orElse</code>, dat is beter voor performance.</p><p style="color:var(--muted);font-size:14px">Klinkt als een micro-optimalisatie. De auteur denkt "een paar nanoseconden" en klikt op resolve, terwijl het echte probleem een dubbel PSP-account en een kapotte checkout is.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>registerCustomer(cmd)</code> staat als argument van <code>orElse</code> en wordt daarom áltijd uitgevoerd, ook als de klant al bestaat: Java rekent het argument uit voordat <code>orElse</code> kijkt of de Optional gevuld is.</p><p><b>Gevolg:</b> voor elke terugkerende klant een extra klant bij de PSP, en een tweede <code>INSERT</code> op <code>shopper_reference</code> die op de unique constraint stukloopt. Terugkerende klanten kunnen niet afrekenen.</p><p><b>Voorstel:</b> <code>.orElseGet(() -&gt; registerCustomer(cmd))</code>, plus een test die <code>verify(psp, never()).createCustomer(...)</code> doet voor een bestaande klant. Los daarvan: zit de PSP-call bewust binnen de transactie?</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment; geef bij stijlbevindingen ook de herschrijving die je zou voorstellen. Niet alles wat verdacht lijkt is fout. Context: <code>PspClient.submitRefund</code> is een HTTP-call naar de PSP (200–2000 ms) die het refund-id als idempotency key meestuurt. Clients sturen bij een timeout hetzelfde verzoek met dezelfde <code>idempotencyKey</code> opnieuw. <code>reasonCode</code> is optioneel in de API; in <code>Refund</code> staat <code>public @Nullable String getReasonCode()</code>. <code>ReasonCatalog</code> is een in-memory map die bij het opstarten wordt geladen; <code>fallbackLabel()</code> geeft een vaste tekst uit de configuratie terug.</p>
+  <div class="diff">
+    <div class="diff-head">PR #447 · Refunds idempotent maken en refund-overzicht per betaling</div>
+<pre><span><span class="ln">1</span>@Service</span><span><span class="ln">2</span>public class RefundService {</span><span><span class="ln">3</span></span><span><span class="ln">4</span>    private final RefundRepository refunds;</span><span><span class="ln">5</span>    private final PaymentRepository payments;</span><span><span class="ln">6</span>    private final PspClient psp;</span><span><span class="ln">7</span>    private final ReasonCatalog reasonCatalog;</span><span><span class="ln">8</span></span><span><span class="ln">9</span>    // constructor-injectie weggelaten</span><span><span class="ln">10</span></span><span><span class="ln">11</span>    @Transactional</span><span><span class="ln">12</span>    public RefundView requestRefund(RefundCommand cmd) {</span><span><span class="ln">13</span>        Refund refund = refunds.findByIdempotencyKey(cmd.idempotencyKey())</span><span><span class="ln">14</span>                .orElse(newRefund(cmd));</span><span><span class="ln">15</span>        if (refund.getStatus() == RefundStatus.REQUESTED) {</span><span><span class="ln">16</span>            var pspRef = psp.submitRefund(refund.getPspPaymentRef(), refund.getAmount(), refund.getId());</span><span><span class="ln">17</span>            refund.markSubmitted(pspRef);</span><span><span class="ln">18</span>        }</span><span><span class="ln">19</span>        return toView(refund);</span><span><span class="ln">20</span>    }</span><span><span class="ln">21</span></span><span><span class="ln">22</span>    private Refund newRefund(RefundCommand cmd) {</span><span><span class="ln">23</span>        Payment payment = payments.findById(cmd.paymentId()).orElseThrow();</span><span><span class="ln">24</span>        payment.reserveRefund(cmd.amount());   // gooit RefundNotAllowedException als het restbedrag te laag is</span><span><span class="ln">25</span>        return refunds.save(Refund.requested(payment, cmd.amount(), cmd.reasonCode(), cmd.idempotencyKey()));</span><span><span class="ln">26</span>    }</span><span><span class="ln">27</span></span><span><span class="ln">28</span>    @Transactional(readOnly = true)</span><span><span class="ln">29</span>    public Optional&lt;List&lt;RefundView&gt;&gt; refundsFor(UUID paymentId) {</span><span><span class="ln">30</span>        List&lt;Refund&gt; found = refunds.findByPaymentIdOrderByCreatedAtDesc(paymentId);</span><span><span class="ln">31</span>        if (found.isEmpty()) {</span><span><span class="ln">32</span>            return Optional.empty();</span><span><span class="ln">33</span>        }</span><span><span class="ln">34</span>        return Optional.of(found.stream().map(this::toView).toList());</span><span><span class="ln">35</span>    }</span><span><span class="ln">36</span></span><span><span class="ln">37</span>    private RefundView toView(Refund refund) {</span><span><span class="ln">38</span>        String label = reasonLabel(refund).orElse(reasonCatalog.fallbackLabel());</span><span><span class="ln">39</span>        return new RefundView(refund.getId(), refund.getAmount(), refund.getStatus(), label);</span><span><span class="ln">40</span>    }</span><span><span class="ln">41</span></span><span><span class="ln">42</span>    private Optional&lt;String&gt; reasonLabel(Refund refund) {</span><span><span class="ln">43</span>        return Optional.of(refund.getReasonCode())</span><span><span class="ln">44</span>                .map(reasonCatalog::label);</span><span><span class="ln">45</span>    }</span><span><span class="ln">46</span>}</span><span><span class="ln">47</span></span><span><span class="ln">48</span>// RefundController.java (gewijzigd)</span><span><span class="ln">49</span>@GetMapping("/payments/{paymentId}/refunds")</span><span><span class="ln">50</span>public ResponseEntity&lt;List&lt;RefundView&gt;&gt; list(@PathVariable UUID paymentId) {</span><span><span class="ln">51</span>    return refundService.refundsFor(paymentId)</span><span><span class="ln">52</span>            .map(ResponseEntity::ok)</span><span><span class="ln">53</span>            .orElse(ResponseEntity.notFound().build());</span><span><span class="ln">54</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regels 13–14 (met 22–26)</b> <span class="sev blocker">blocker</span> De idempotency die deze PR belooft, werkt precies niet bij een retry. <code>newRefund(cmd)</code> is het argument van <code>orElse</code> en draait dus ook als de refund al bestaat. Bij een retry van een volledige refund ziet <code>reserveRefund</code> een restbedrag van 0 en gooit <code>RefundNotAllowedException</code>: de client krijgt een fout op een refund die gelukt is. Bij een retry van een gedeeltelijke refund wordt het bedrag nog eens gereserveerd (30 wordt 60) en komt er een tweede <code>REQUESTED</code>-rij bij met dezelfde key; met een unique constraint op de key faalt de retry, zonder constraint gooit de volgende <code>findByIdempotencyKey</code> een <code>IncorrectResultSizeDataAccessException</code>. Fix: <code>.orElseGet(() -&gt; newRefund(cmd))</code>.</p>
+      <p><b>Regels 11 en 16</b> <span class="sev blocker">blocker</span> <i>Uit <a href="transacties-en-proxies.html">module 1</a>.</i> Remote call binnen de transactie. De connectie staat 200–2000 ms vast, en als er ná regel 16 iets faalt, rolt de transactie terug terwijl de PSP het geld al terugstort. Dat gebeurt hier echt, zie regel 43. Na de rollback bestaat de refund niet meer; de retry van de client vindt dus niets, maakt een refund met een <em>nieuw</em> id aan, en stuurt dat als nieuwe idempotency key naar de PSP: dubbele refund. Voorstel: transactie 1 legt de refund vast als <code>REQUESTED</code>, de PSP-call gebeurt daarna buiten een transactie, transactie 2 zet hem op <code>SUBMITTED</code>.</p>
+      <p><b>Regel 43</b> <span class="sev major">major</span>, met regel 16 een blocker. <code>getReasonCode()</code> is <code>@Nullable</code>, en <code>Optional.of(null)</code> gooit een NPE. Elke refund zonder reden faalt dus in <code>toView</code>, ná de PSP-call; en elke betaling met zo'n refund geeft een 500 op het overzicht. <code>Optional.ofNullable</code> lost het op; <code>map</code> vangt daarna ook een onbekende code af, want <code>reasonCatalog.label</code> die <code>null</code> teruggeeft levert een lege Optional. Les voor de review: <code>Optional.of</code> op een getter is een bewering; check of die getter non-null is.</p>
+      <p><b>Regel 23</b> <span class="sev minor">minor</span> Kaal <code>orElseThrow()</code> op een API-pad. Een onbekend <code>paymentId</code> wordt een <code>NoSuchElementException: No value present</code>: zonder id in de log, en een 500 in plaats van een 404, tenzij iemand een globale handler voor <code>NoSuchElementException</code> heeft (die dan ook echte bugs als 404 maskeert). Voorstel: <code>.orElseThrow(() -&gt; new PaymentNotFoundException(cmd.paymentId()))</code> met een <code>ProblemDetail</code>-mapping.</p>
+      <p><b>Regels 29–35 en 51–53</b> <span class="sev minor">minor</span> <code>Optional&lt;List&gt;</code> geeft "geen refunds" twee representaties: een lege Optional, en (in theorie) een Optional met een lege lijst. Elke aanroeper moet beide kennen. Het gevolg is al zichtbaar in de controller: een bestaande betaling zonder refunds geeft <code>404</code>, en een client kan niet meer onderscheiden tussen "betaling bestaat niet" en "nog geen refunds". Herschrijving:</p>
+<pre class="snip">public List&lt;RefundView&gt; refundsFor(UUID paymentId) {
+    return refunds.findByPaymentIdOrderByCreatedAtDesc(paymentId).stream()
+            .map(this::toView)
+            .toList();
+}</pre>
+      <p>Waarom dit beter is, en niet alleen korter: één pad in plaats van twee, een lege lijst is gewoon een geldig antwoord (<code>200 []</code>), en als "betaling bestaat niet" een 404 moet zijn, wordt dat een expliciete check op de betaling in plaats van een bijeffect van een lege lijst. <code>Stream.toList()</code> is onwijzigbaar, wat bij een view ook de bedoeling is.</p>
+      <p><b>Regel 38</b> <span class="sev ok">geen probleem</span> De afleider. Ja, <code>reasonCatalog.fallbackLabel()</code> wordt altijd uitgerekend, ook als er een label is. Maar het is een goedkope getter op een in-memory object zonder side effects: het resultaat wordt weggegooid en er gebeurt verder niets. Een comment "gebruik <code>orElseGet</code>" is hier hooguit een <span class="sev nit">nit</span>, en wie hem plaatst terwijl regel 14 blijft staan, heeft het verschil niet begrepen. Hetzelfde geldt voor regel 53.</p>
+      <p><b>Bonus</b> <span class="sev minor">vraag</span> Ook mét <code>orElseGet</code> is regel 13–14 check-then-act: twee gelijktijdige requests met dezelfde key zien allebei een lege Optional. Staat er een unique constraint op <code>idempotency_key</code>, en wat krijgt de verliezer terug?</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Een PR voegt een cache toe voor wisselkoersen. <code>fxProvider.fetchRate</code> is een HTTP-call van zo'n 80 ms. In de loadtest zijn alle 1000 requests cache hits.</p>
+<pre class="snip">BigDecimal rate = rateCache.get(currencyPair)          // Optional&lt;BigDecimal&gt;
+        .orElse(fxProvider.fetchRate(currencyPair));</pre>
+      <p class="ask">Hoeveel HTTP-calls doet deze code in de loadtest?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">1000: de cache bespaart niets, elke request betaalt nog steeds 80 ms.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>fetchRate(...)</code> is het argument van <code>orElse</code> en wordt uitgerekend vóór de aanroep, of de cache nu iets heeft of niet.</li>
+          <li>Het resultaat wordt bij een hit weggegooid, dus functioneel lijkt alles te kloppen. Alleen de latency en de call-count bij de provider verraden het.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>fetchRate</code> staat in <code>orElse</code> en draait dus ook bij een cache hit; de cache spaart geen enkele call. Gebruik <code>.orElseGet(() -&gt; fxProvider.fetchRate(currencyPair))</code>. Een test die het aantal calls naar de provider telt, had dit gevangen.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 1 · herkennen</span></div>
+      <p class="situ">Een betaling die nog niet gecaptured is, heeft <code>capturedAt == null</code>. Twee varianten om er een <code>Optional&lt;Instant&gt;</code> van te maken:</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · map</p>
+<pre class="snip">Optional.of(payment)
+        .map(Payment::getCapturedAt)</pre></div>
+        <div><p class="snip-label">B · of</p>
+<pre class="snip">Optional.of(payment.getCapturedAt())</pre></div>
+      </div>
+      <p class="ask">Wat geven A en B voor een betaling die nog niet gecaptured is?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A geeft <code>Optional.empty()</code>; B gooit een <code>NullPointerException</code>.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>map</code> pakt het resultaat in met <code>ofNullable</code>; een <code>null</code>-resultaat wordt een lege Optional.</li>
+          <li><code>Optional.of</code> eist een niet-<code>null</code> waarde. Het juiste alternatief voor B is <code>Optional.ofNullable(payment.getCapturedAt())</code>.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Bij <code>flatMap</code> is het andersom: geeft de functie <code>null</code> terug in plaats van een <code>Optional</code>, dan krijg je wél een NPE.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · kiezen en verdedigen</span></div>
+      <p class="situ">Een batchjob laadt de betalingen bij een lijst van 500 ids. <code>payments</code> is een Spring Data <code>ListCrudRepository</code>. Drie varianten uit drie PR's:</p>
+<pre class="snip">// A
+ids.stream().map(payments::findById)
+        .filter(Optional::isPresent).map(Optional::get).toList();
+// B
+ids.stream().map(payments::findById)
+        .flatMap(Optional::stream).toList();
+// C
+payments.findAllById(ids);</pre>
+      <p class="ask">Welke keur je goed, en wat schrijf je bij de andere twee?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">C: één query in plaats van 500. B is de nette vorm van A, maar heeft hetzelfde kostenprobleem.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>A en B doen elk een <code>findById</code> per id: 500 roundtrips naar de database. De stream-vorm verbergt dat.</li>
+          <li>Als het om lookups in het geheugen ging, was B de beste schrijfwijze: <code>flatMap(Optional::stream)</code> zegt in één stap "neem de aanwezige waarden", waar A het in twee stappen met een <code>get()</code> doet.</li>
+          <li><code>findAllById</code> doet één query (<code>IN</code>-clause). De volgorde van het resultaat is niet gegarandeerd.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Alle drie laten ontbrekende ids stil weg. Is een ontbrekende betaling in deze batch een fout, vergelijk dan het aantal resultaten met het aantal ids en meld welke ontbreken.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 4 · kiezen</span></div>
+      <p class="situ">Een JPA-entity in een <code>@NullMarked</code> package krijgt een nieuw veld. Twee voorstellen:</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · Optional-veld</p>
+<pre class="snip">private Optional&lt;Instant&gt; settledAt
+        = Optional.empty();
+
+public Optional&lt;Instant&gt; settledAt() {
+    return settledAt;
+}</pre></div>
+        <div><p class="snip-label">B · @Nullable-veld</p>
+<pre class="snip">private @Nullable Instant settledAt;
+
+public Optional&lt;Instant&gt; settledAt() {
+    return Optional.ofNullable(settledAt);
+}</pre></div>
+      </div>
+      <p class="ask">Welke kies je, en waarom?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">B: nullable veld van binnen, <code>Optional</code> alleen als returntype naar buiten.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De JPA-specificatie noemt <code>Optional</code> niet als attribuuttype. Reken er niet op dat je provider het zonder converter mapt; de gangbare vorm is B.</li>
+          <li><code>Optional</code> is niet <code>Serializable</code>; een entity die in een sessie of cache wordt geserialiseerd, faalt met <code>NotSerializableException</code>.</li>
+          <li>Het veld in A kan alsnog <code>null</code> worden (een constructor of mapper die het overslaat), en dan geeft de getter <code>null</code> terug waar een <code>Optional</code> beloofd is.</li>
+          <li>B geeft dezelfde API naar buiten, en <code>@Nullable</code> laat NullAway of de IDE controleren dat code binnen de klasse het veld niet ongecontroleerd gebruikt.</li>
+        </ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">Spring Boot 4, Spring Data 4. De repository staat in een package met <code>@NullMarked</code> in <code>package-info.java</code>. Een PR "vereenvoudigt" de finder:</p>
+<pre class="snip">// PspCustomerRepository
+PspCustomer findByShopperReference(String ref);
+
+// CheckoutService
+PspCustomer customer = customers.findByShopperReference(ref);
+if (customer == null) {
+    customer = registerCustomer(cmd);
+}</pre>
+      <p class="ask">Wat gebeurt er bij de eerste checkout van een nieuwe shopper, en welke zwaarte geef je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev blocker">blocker</span>: de finder gooit <code>EmptyResultDataAccessException</code>, de <code>null</code>-check wordt nooit bereikt, en nieuwe klanten kunnen niet afrekenen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>In een <code>@NullMarked</code> package is het returntype <code>PspCustomer</code> non-null. Spring Data 4 voegt een interceptor toe die dat tijdens runtime afdwingt: geen resultaat betekent een exception, geen <code>null</code>.</li>
+          <li>De <code>if (customer == null)</code> is daardoor dode code. Een unit-test met een gemockte repository die <code>null</code> teruggeeft, is groen; alleen een test tegen de echte repository laat het zien.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue (blocking):</b> deze package is <code>@NullMarked</code>, dus <code>findByShopperReference</code> zonder <code>@Nullable</code> gooit <code>EmptyResultDataAccessException</code> als de shopper nog niet bestaat; de <code>null</code>-check wordt nooit bereikt. Houd <code>Optional&lt;PspCustomer&gt;</code> met <code>orElseGet(() -&gt; registerCustomer(cmd))</code>, of maak het returntype <code>@Nullable PspCustomer</code>. Kun je er een <code>@DataJpaTest</code> voor de nieuwe-shopper-case bij zetten?</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Java SE 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/Optional.html"><code>java.util.Optional</code></a>: de API Note bovenaan de klasse over het bedoelde gebruik, en de notes bij <code>get()</code> en <code>orElseThrow()</code>.</li>
+    <li>Joshua Bloch, <i>Effective Java</i>, 3e editie, Item 55: "Return optionals judiciously". Over Optional als returntype, en waarom niet in collecties, velden of als map-sleutel.</li>
+    <li>Spring Framework Reference, Core › <a href="https://docs.spring.io/spring-framework/reference/core/null-safety.html">Null-safety</a>: JSpecify in Spring 7, <code>@NullMarked</code> in <code>package-info.java</code>, plaatsing van type-use-annotaties, en de NullAway-configuratie.</li>
+    <li>Spring Data Commons Reference, <a href="https://docs.spring.io/spring-data/commons/reference/repositories/null-handling.html">Null Handling of Repository Methods</a>: wat een finder doet met <code>Optional</code>, <code>@Nullable</code> en een non-null returntype in een <code>@NullMarked</code> package.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

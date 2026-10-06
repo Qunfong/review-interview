@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dual write en outbox · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module herken je een dual write tussen database en Kafka in een diff, leg je met een tijdlijn uit of hij tot een spookevent of een verloren event leidt, kies je tussen AFTER_COMMIT, outbox en CDC, en ontwerp je een idempotente consumer.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="dual-write-en-outbox">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 3 · D7 Microservices en gedistribueerde systemen</p>
+  <h1>Dual write en outbox</h1>
+  <p class="lede">Een database en een Kafka-topic delen geen transactie. Schrijf je naar allebei, dan bestaat er altijd een moment waarop het ene gelukt is en het andere niet. Daar komen pakketten vandaan die worden verzonden voor geannuleerde orders, en terugbetalingen die nooit worden aangevraagd.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 · Spring Boot 4 (Framework 7) · Spring for Apache Kafka</span><span><b>Bouwt op</b> module 1</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Een dual write in een diff <b>herkennen</b>, ook als hij verstopt zit in een event listener, en met een tijdlijn <b>uitleggen</b> of hij tot een spookevent of een verloren event leidt.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span>Het transactional-outboxpatroon <b>uittekenen</b> (tabel, relay, at-least-once) en <b>kiezen</b> tussen een eigen relay, Spring Modulith en CDC, met de prijs van elk: dubbelen, volgorde, opruimen.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span>Een <b>idempotente consumer ontwerpen</b>: deduplicatie in dezelfde transactie als het effect, en een idempotency key richting externe systemen.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span><code>@TransactionalEventListener(AFTER_COMMIT)</code> <b>plaatsen</b> tussen "binnen de transactie publiceren" en een outbox, de <b>zwaarte inschatten</b> en daar een reviewcomment over schrijven.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Een <code>@Transactional</code>-methode roept <code>kafkaTemplate.send(...)</code> aan en daarna faalt de commit. Wat is er dan op het topic terechtgekomen?</li>
+      <li>Je verplaatst de send naar een <code>@TransactionalEventListener</code>. Welk probleem los je daarmee op, en welk niet?</li>
+      <li>Kafka levert at-least-once. Wat betekent dat voor een consumer die een terugbetaling uitvoert?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Een databasetransactie is atomair binnen <em>één</em> resource: de commit gaat over één connectie naar één database. <code>KafkaTemplate</code> doet niet mee. Ook niet als je de send binnen <code>@Transactional</code> zet: de <code>DataSourceTransactionManager</code> of <code>JpaTransactionManager</code> weet niets van de producer. Een XA-transactie over beide bestaat in de praktijk niet; Kafka ondersteunt geen XA.</p>
+  <p>Er zijn dus twee onafhankelijke writes, en twee volgordes waarin je ze kunt doen. Allebei hebben een venster waarin een crash, een deploy of een storing de twee uit elkaar trekt:</p>
+  <ul>
+    <li><b>Eerst publiceren, dan committen</b> (send binnen de transactie). Faalt de commit, dan staat het event al op het topic. Het is niet terug te halen: een <b>spookevent</b> over iets dat nooit is gebeurd. De producer verstuurt op de achtergrond, met <code>linger.ms</code> standaard 5 ms; de commit komt pas als je methode terugkeert, en tegen die tijd is het record meestal al weg.</li>
+    <li><b>Eerst committen, dan publiceren</b> (send na de commit). Crasht het proces tussen de twee, of is de broker onbereikbaar, dan staat de wijziging in de database maar weet niemand ervan: een <b>verloren event</b>. Er is geen crashvrij moment tussen twee regels code.</li>
+  </ul>
+  <p>De outbox draait het probleem om. Je schrijft het event als rij in een <code>outbox</code>-tabel, <em>in dezelfde transactie</em> als de wijziging. Nu is het weer één write naar één resource: allebei of geen van beide. Een aparte relay leest de tabel, publiceert, en markeert de rij als verzonden. Ook daar zitten twee writes in (Kafka en de markering), maar nu in een volgorde waarin een crash alleen een <em>dubbel</em> oplevert, nooit een verlies. Daarom moet elke consumer van een outbox-topic tegen dubbelen kunnen.</p>
+  <figure>
+    <svg viewBox="0 0 400 880" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Drie tijdlijnen met lanes App, Database en Kafka. A: het event gaat naar Kafka voor de commit; de commit faalt, de database rolt terug, het event blijft staan. B: de commit lukt, daarna volgt een crash-venster en de send komt nooit aan. C: order en outbox-rij worden in één transactie gecommit; een relay pollt de outbox, verstuurt naar Kafka, krijgt een ack en markeert de rij; een crash tussen ack en markering levert een dubbel op.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="arr-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--blocker)"/></marker>
+        <marker id="arr-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+        <marker id="arr-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>
+      </defs>
+
+      <!-- Paneel A: send binnen de transactie -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--blocker)">A · send binnen de transactie</text>
+      <rect x="15" y="28" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="60" y="46" font-size="12" text-anchor="middle" style="fill:currentColor">App</text>
+      <rect x="155" y="28" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="200" y="46" font-size="12" text-anchor="middle" style="fill:currentColor">Database</text>
+      <rect x="295" y="28" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="340" y="46" font-size="12" text-anchor="middle" style="fill:currentColor">Kafka</text>
+      <line x1="60" y1="54" x2="60" y2="222" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="200" y1="54" x2="200" y2="222" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="340" y1="54" x2="340" y2="222" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+
+      <text x="66" y="78" font-size="12" style="fill:currentColor">BEGIN · order → PAID</text>
+      <line x1="60" y1="84" x2="198" y2="84" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="66" y="112" font-size="11" class="mono" style="fill:currentColor">kafka.send(OrderPaid)</text>
+      <line x1="60" y1="118" x2="338" y2="118" style="stroke:var(--blocker);stroke-width:2" marker-end="url(#arr-bad)"/>
+      <rect x="290" y="128" width="104" height="34" rx="4" style="fill:var(--surface);stroke:var(--blocker)"/>
+      <text x="342" y="142" font-size="11" text-anchor="middle" style="fill:currentColor">warehouse leest</text>
+      <text x="342" y="156" font-size="11" text-anchor="middle" style="fill:currentColor">en verzendt</text>
+      <text x="66" y="184" font-size="12" style="fill:currentColor">COMMIT</text>
+      <line x1="60" y1="190" x2="198" y2="190" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="208" y="188" font-size="12" font-weight="600" style="fill:var(--blocker)">✗ optimistic lock</text>
+      <text x="208" y="204" font-size="12" style="fill:var(--blocker)">→ ROLLBACK</text>
+      <text x="200" y="244" font-size="12" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">Kafka zegt betaald, de database niet: spookevent</text>
+
+      <!-- Paneel B: send na de commit -->
+      <text x="0" y="296" font-size="15" font-weight="600" style="fill:var(--blocker)">B · send na de commit</text>
+      <rect x="15" y="308" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="60" y="326" font-size="12" text-anchor="middle" style="fill:currentColor">App</text>
+      <rect x="155" y="308" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="200" y="326" font-size="12" text-anchor="middle" style="fill:currentColor">Database</text>
+      <rect x="295" y="308" width="90" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="340" y="326" font-size="12" text-anchor="middle" style="fill:currentColor">Kafka</text>
+      <line x1="60" y1="334" x2="60" y2="500" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="200" y1="334" x2="200" y2="500" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="340" y1="334" x2="340" y2="500" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+
+      <text x="66" y="358" font-size="12" style="fill:currentColor">BEGIN · order → PAID</text>
+      <line x1="60" y1="364" x2="198" y2="364" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="66" y="390" font-size="12" style="fill:currentColor">COMMIT</text>
+      <line x1="60" y1="396" x2="198" y2="396" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="208" y="400" font-size="12" font-weight="600" style="fill:var(--ok)">✓ betaald</text>
+      <rect x="8" y="412" width="384" height="44" rx="4" style="fill:var(--del)"/>
+      <text x="200" y="430" font-size="12" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">crash-venster</text>
+      <text x="200" y="447" font-size="11" text-anchor="middle" style="fill:currentColor">deploy · OOM · kill -9 · broker onbereikbaar</text>
+      <text x="66" y="476" font-size="11" class="mono" style="fill:var(--muted)">kafka.send(OrderPaid)</text>
+      <line x1="60" y1="482" x2="322" y2="482" style="stroke:var(--muted);stroke-dasharray:5 4" marker-end="url(#arr-muted)"/>
+      <text x="340" y="487" font-size="15" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">✗</text>
+      <text x="200" y="524" font-size="12" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">De database zegt betaald, Kafka weet van niets: verloren</text>
+
+      <!-- Paneel C: outbox -->
+      <text x="0" y="576" font-size="15" font-weight="600" style="fill:var(--ok)">C · outbox: één transactie, relay publiceert</text>
+      <rect x="10" y="588" width="80" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="50" y="606" font-size="12" text-anchor="middle" style="fill:currentColor">App</text>
+      <rect x="110" y="588" width="80" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="150" y="606" font-size="12" text-anchor="middle" style="fill:currentColor">Database</text>
+      <rect x="210" y="588" width="80" height="26" rx="5" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+      <text x="250" y="606" font-size="12" text-anchor="middle" style="fill:currentColor">Relay</text>
+      <rect x="310" y="588" width="80" height="26" rx="5" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="350" y="606" font-size="12" text-anchor="middle" style="fill:currentColor">Kafka</text>
+      <line x1="50" y1="614" x2="50" y2="830" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="150" y1="614" x2="150" y2="830" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="250" y1="614" x2="250" y2="830" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+      <line x1="350" y1="614" x2="350" y2="830" style="stroke:var(--muted);stroke-dasharray:3 3"/>
+
+      <text x="56" y="638" font-size="12" style="fill:currentColor">BEGIN · PAID + outbox-rij</text>
+      <line x1="50" y1="644" x2="148" y2="644" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="56" y="670" font-size="12" style="fill:currentColor">COMMIT</text>
+      <line x1="50" y1="676" x2="148" y2="676" style="stroke:var(--ok);stroke-width:2" marker-end="url(#arr-ok)"/>
+      <text x="156" y="690" font-size="11" font-weight="600" style="fill:var(--ok)">✓ allebei</text>
+      <text x="244" y="712" font-size="11" text-anchor="end" class="mono" style="fill:currentColor">poll: sent_at IS NULL</text>
+      <line x1="250" y1="718" x2="152" y2="718" style="stroke:var(--accent)" marker-end="url(#arr)"/>
+      <text x="256" y="744" font-size="11" class="mono" style="fill:currentColor">send(key)</text>
+      <line x1="250" y1="750" x2="348" y2="750" style="stroke:var(--accent)" marker-end="url(#arr)"/>
+      <text x="344" y="770" font-size="11" text-anchor="end" style="fill:var(--muted)">ack</text>
+      <line x1="350" y1="776" x2="252" y2="776" style="stroke:var(--muted);stroke-dasharray:5 4" marker-end="url(#arr-muted)"/>
+      <rect x="160" y="784" width="232" height="18" rx="3" style="fill:var(--del)"/>
+      <text x="276" y="797" font-size="11" text-anchor="middle" style="fill:currentColor">crash hier → straks opnieuw verstuurd</text>
+      <text x="244" y="816" font-size="11" text-anchor="end" class="mono" style="fill:currentColor">UPDATE sent_at</text>
+      <line x1="250" y1="822" x2="152" y2="822" style="stroke:var(--accent)" marker-end="url(#arr)"/>
+      <text x="200" y="852" font-size="12" font-weight="600" text-anchor="middle" style="fill:var(--ok)">Geen spookevent, geen verlies.</text>
+      <text x="200" y="870" font-size="12" text-anchor="middle" style="fill:currentColor">Wel dubbelen: de consumer moet idempotent zijn.</text>
+    </svg>
+    <figcaption>A en B hebben elk een venster waarin de database en Kafka uit elkaar lopen; welke kant er misgaat hangt alleen af van de volgorde. In C is de enige write van de applicatie één commit. Het venster is verhuisd naar de relay, tussen <i>ack</i> en <code>UPDATE sent_at</code>, en daar levert een crash een dubbel op in plaats van een verlies.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Geverifieerd</b> met Spring Framework 7.0.9, <code>DataSourceTransactionManager</code>, H2 en JDK 25, met een nep-broker (een lijst) in plaats van Kafka: een send binnen een transactie die daarna terugrolt laat het bericht staan; een <code>@TransactionalEventListener</code> draait pas na de commit (de rij is dan zichtbaar vanaf een andere connectie) en niet bij een rollback; een outbox-rij rolt mee terug; een relay die crasht tussen versturen en markeren verstuurt hetzelfde event twee keer. Het Kafka-gedrag zelf (defaults, foutafhandeling) komt uit de documentatie van Apache Kafka en Spring for Apache Kafka 4.1.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>De betaalprovider (PSP) stuurt een webhook als een autorisatie gelukt is. De orderservice zet de order op <code>PAID</code> en publiceert <code>OrderPaid</code>; de warehouse-service maakt daarop een zending aan. <code>Order</code> heeft een <code>@Version</code>-kolom, want een klant kan tegelijk annuleren.</p>
+  <div class="diff">
+    <div class="diff-head">PaymentConfirmationService.java</div>
+<pre><span>@Service</span><span>public class PaymentConfirmationService {</span><span></span><span>    private final OrderRepository orders;</span><span>    private final KafkaTemplate&lt;String, OrderPaid&gt; kafka;</span><span>    private final Clock clock;</span><span></span><span>    // constructor-injectie weggelaten</span><span></span><span class="a">+   @Transactional</span><span class="a">+   public void onAuthorisationSucceeded(PspNotification n) {</span><span class="a">+       var order = orders.findByPspReference(n.pspReference())</span><span class="a">+               .orElseThrow(() -&gt; new UnknownPaymentException(n.pspReference()));</span><span class="a">+       order.markPaid(n.amount(), clock.instant());</span><span class="a">+       kafka.send("order-paid", order.getId().toString(),</span><span class="a">+               new OrderPaid(UUID.randomUUID(), order.getId(), order.getCustomerId(), n.amount()));</span><span class="a">+   }</span><span>}</span></pre>
+  </div>
+  <p>Twee scenario's die in productie allebei voorkomen:</p>
+  <ol>
+    <li><b>Spookevent.</b> De klant annuleert op hetzelfde moment. De annulering commit eerst en verhoogt de versie. <code>markPaid</code> wijzigt alleen de entity; Hibernate schrijft pas bij de flush vlak voor de commit, en daar faalt de versiecheck: <code>ObjectOptimisticLockingFailureException</code>, rollback. Maar <code>send</code> heeft het record al aan de producer gegeven, en die heeft het binnen een paar milliseconden verstuurd. De warehouse verzendt een geannuleerde order.</li>
+    <li><b>Verloren event.</b> De broker is onbereikbaar of de partitie heeft even geen leader. <code>send()</code> retourneert een <code>CompletableFuture</code> die niemand bekijkt; de transactie commit. Lukt het binnen <code>delivery.timeout.ms</code> (standaard 2 minuten) niet, dan faalt de future, en dat ziet niemand. De order is betaald en wordt nooit verzonden. Kan de producer de metadata van het topic niet ophalen, dan blokkeert <code>send()</code> zelfs tot <code>max.block.ms</code> (standaard 60 s), met de databaseconnectie vast. Dat is de remote call binnen de transactie uit module 1.</li>
+  </ol>
+  <p>Een test met een embedded broker is groen: zonder storing gaan beide writes goed. Het probleem zit alleen in de vensters.</p>
+
+  <h3>De voor de hand liggende fix, en waarom die halverwege blijft</h3>
+  <p>De eerste reflex is de send naar na de commit verplaatsen, met een event en een <code>@TransactionalEventListener</code> (standaardfase <code>AFTER_COMMIT</code>):</p>
+  <div class="diff">
+    <div class="diff-head">OrderPaidPublisher.java</div>
+<pre><span>@Component</span><span>class OrderPaidPublisher {</span><span>    private final KafkaTemplate&lt;String, OrderPaid&gt; kafka;</span><span>    // constructor-injectie weggelaten</span><span></span><span>    @TransactionalEventListener   // phase = AFTER_COMMIT</span><span>    void on(OrderPaid e) {</span><span>        kafka.send("order-paid", e.orderId().toString(), e);</span><span>    }</span><span>}</span></pre>
+  </div>
+  <p>Dat haalt het spookevent weg: bij een rollback draait de listener niet. Het is scenario B uit het diagram. Wat overblijft:</p>
+  <ul>
+    <li>Crash of deploy tussen commit en send: weg.</li>
+    <li>Gooit de listener een exception, dan ziet de aanroeper daar niets van. Spring logt alleen <i>TransactionSynchronization.afterCompletion threw exception</i> op <code>ERROR</code>; de transactie is immers al gecommit.</li>
+    <li>Wordt het event gepubliceerd terwijl er <em>geen</em> transactie actief is (een self-invocation, zoals in module 1, of een <code>@Scheduled</code>-methode zonder <code>@Transactional</code>), dan draait de listener helemaal niet. Alleen op <code>DEBUG</code> staat <i>No transaction is active - skipping</i>. Met <code>fallbackExecution = true</code> draait hij dan wel, maar direct en zonder commitgarantie.</li>
+    <li>Wil de listener zelf naar de database schrijven, dan moet dat in een nieuwe transactie. Spring dwingt dat af: <code>@Transactional</code> op een <code>@TransactionalEventListener</code> (behalve in fase <code>BEFORE_COMMIT</code>) mag alleen met <code>REQUIRES_NEW</code> of <code>NOT_SUPPORTED</code>, anders start de context niet.</li>
+  </ul>
+  <p>Een gewone <code>@EventListener</code> is geen alternatief: die draait synchroon tijdens <code>publishEvent</code>, binnen de transactie, en is dus weer variant A.</p>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · Eigen outbox-tabel en relay</h4>
+      <p>Het event wordt een rij in dezelfde transactie; een relay publiceert. Volledige controle, alleen de database als afhankelijkheid. <b>Prijs:</b> dubbelen (consumers moeten idempotent zijn), latency van het pollen, een tabel die je moet opruimen, en volgorde per key die je zelf moet bewaken zodra er meer dan één relay draait.</p>
+    </div>
+    <div>
+      <h4>B · Spring Modulith Event Publication Registry</h4>
+      <p>De registry schrijft voor elke transactionele listener een publicatie-rij in dezelfde transactie, en markeert die pas als <code>COMPLETED</code> als de listener slaagt. Met <code>spring-modulith-events-kafka</code> en <code>@Externalized</code> gaat het event naar Kafka. <b>Prijs:</b> de documentatie noemt dit zelf pragmatisch maar zonder de kritieke features van een echte outbox; vanaf Modulith 2.1 kan externalisatie via Namastack Outbox of JobRunr lopen. Opnieuw aanbieden gaat niet vanzelf: <code>republish-outstanding-events-on-restart</code> staat standaard uit (en wordt bij meerdere instanties afgeraden), dus je hebt een job nodig met <code>IncompleteEventPublications</code> of <code>FailedEventPublications</code>.</p>
+    </div>
+    <div>
+      <h4>C · Change data capture (Debezium Outbox Event Router)</h4>
+      <p>Geen poller: Debezium leest de outbox-tabel uit de write-ahead log en routeert naar topics. Volgorde komt uit het log. <b>Prijs:</b> Kafka Connect en Debezium draaien en bewaken, schema-afspraken over de tabel, en nog steeds at-least-once.</p>
+    </div>
+  </div>
+  <p><b>Geen oplossing:</b> Kafka-transacties synchroniseren met de databasetransactie. Spring for Apache Kafka kan dat, maar noemt het zelf geen atomiciteit: de database commit eerst, daarna Kafka; faalt de tweede commit, dan krijgt de aanroeper een exception terwijl de database al gecommit is. <code>ChainedKafkaTransactionManager</code> is sinds 2.7 deprecated.</p>
+
+  <div class="diff">
+    <div class="diff-head">Fix A · PaymentConfirmationService.java</div>
+<pre><span class="d">-   private final KafkaTemplate&lt;String, OrderPaid&gt; kafka;</span><span class="a">+   private final OutboxRepository outbox;</span><span></span><span>    @Transactional</span><span>    public void onAuthorisationSucceeded(PspNotification n) {</span><span>        ...</span><span>        order.markPaid(n.amount(), clock.instant());</span><span class="d">-       kafka.send("order-paid", order.getId().toString(),</span><span class="d">-               new OrderPaid(UUID.randomUUID(), order.getId(), order.getCustomerId(), n.amount()));</span><span class="a">+       outbox.append(OutboxMessage.of("order-paid", order.getId().toString(),</span><span class="a">+               new OrderPaid(UUID.randomUUID(), order.getId(), order.getCustomerId(), n.amount())));</span><span>    }</span></pre>
+  </div>
+  <div class="diff">
+    <div class="diff-head">V7__outbox.sql · OutboxRelay.java</div>
+<pre><span>create table outbox_message (</span><span>    id          bigint generated always as identity primary key,  -- volgorde</span><span>    topic       text        not null,</span><span>    message_key text        not null,                              -- orderId: zelfde partitie</span><span>    payload     jsonb       not null,                              -- bevat eventId voor dedup</span><span>    created_at  timestamptz not null default now(),</span><span>    sent_at     timestamptz</span><span>);</span><span>create index outbox_unsent on outbox_message (id) where sent_at is null;</span><span></span><span>@Component</span><span>class OutboxRelay {</span><span>    // outbox, kafka, clock: constructor-injectie weggelaten</span><span></span><span>    @Scheduled(fixedDelay = 500)</span><span>    @Transactional</span><span>    public void publishPending() throws Exception {</span><span>        // select ... where sent_at is null order by id limit 100 for update skip locked</span><span>        var batch = outbox.lockUnsent(100);</span><span>        var acks = batch.stream()</span><span>                .map(m -&gt; kafka.send(m.topic(), m.messageKey(), m.payload()))</span><span>                .toList();</span><span>        for (var ack : acks) {</span><span>            ack.get(10, TimeUnit.SECONDS);      // faalt er één: niets gemarkeerd, hele batch opnieuw</span><span>        }</span><span>        batch.forEach(m -&gt; m.markSent(clock.instant()));</span><span>    }</span><span>}</span></pre>
+  </div>
+  <p>Hier staat een Kafka-send wél binnen een transactie, en dat is nu goed: het ergste wat kan gebeuren is dat de batch verstuurd is en de markering terugrolt, en dan volgt een dubbel. Twee details die een reviewer moet zien. <code>get()</code> gooit checked exceptions, en die rollen standaard niet terug (module 1); hier is dat onschuldig omdat er vóór de exception nog niets is gemarkeerd, maar zet de markering niet in de lus. En <code>SKIP LOCKED</code> laat meerdere relays parallel werken, maar dan kunnen twee events voor dezelfde order in verschillende batches tegelijk onderweg zijn: de volgorde per key is weg. Draai één actieve relay als volgorde ertoe doet.</p>
+
+  <h3>De andere helft: een idempotente consumer</h3>
+  <p>At-least-once betekent dat elke consumer hetzelfde event twee keer kan krijgen: door de relay, maar ook door Kafka zelf (rebalance of crash nadat de listener klaar is maar vóór de offset-commit). Producer-idempotence (<code>enable.idempotence</code>, standaard aan) helpt daar niet tegen; die voorkomt alleen dubbelen door retries binnen de producer, niet een tweede <code>send()</code> van de relay.</p>
+  <div class="diff">
+    <div class="diff-head">ShipmentCreator.java (warehouse-service)</div>
+<pre><span>@KafkaListener(topics = "order-paid", groupId = "warehouse")</span><span>@Transactional</span><span>public void on(OrderPaid event) {</span><span>    // insert into processed_event(event_id, consumer) values (?, 'warehouse') on conflict do nothing</span><span>    if (!processedEvents.markProcessed(event.eventId())) {</span><span>        return;                                  // dubbel: al verwerkt</span><span>    }</span><span>    shipments.create(event.orderId());</span><span>}</span></pre>
+  </div>
+  <p>De deduplicatie-rij en het effect zitten in <em>dezelfde</em> transactie: rolt het effect terug, dan rolt de markering mee en komt het event bij de volgende levering opnieuw binnen. Nog beter is een natuurlijke sleutel: een unieke constraint op <code>shipment.order_id</code> maakt het effect zelf idempotent. Raakt het effect een extern systeem (een PSP-refund), dan helpt een dedup-tabel niet tegen een crash tussen de call en de commit: daar heb je de idempotency key van de provider nodig, met het event- of refund-id als waarde.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Best-effort events met een vangnet.</b> Een cache-invalidatie met een TTL van een paar minuten, een zoekindex die 's nachts volledig wordt herbouwd, een analytics-event. Een verloren event kost hooguit wat versheid. Een <code>@TransactionalEventListener</code> is hier precies goed: geen spookevents, en verlies is acceptabel. Een outbox is dan overkill.</li>
+    <li><b>Er is maar één write.</b> Schrijft de service alleen naar Kafka en bouwt hij zijn eigen tabel op door het topic zelf te consumeren (event-first, "listen to yourself"), dan is er geen dual write. De prijs verschuift naar eventual consistency in je eigen reads.</li>
+    <li><b>Een reconciliatie die het gat sluit.</b> Vergelijkt een dagelijkse job de orders met het settlementrapport van de PSP, dan wordt een verloren event een vertraging in plaats van een verlies. Nog steeds een bevinding, maar geen blocker.</li>
+    <li><b>Interne notificaties</b> zoals "je bestelling is onderweg"-mails: <code>AFTER_COMMIT</code> voorkomt de gênante mail na een rollback; een gemiste mail is jammer, geen incident.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als een consumer geld, voorraad of verzending op het event baseert (betaling, refund, zending) en er geen reconciliatie is, of als een consumer een niet-idempotente externe actie uitvoert zonder deduplicatie · <span class="sev major">major</span> als er een vangnet is maar het gat pas na uren of handmatig dicht gaat, of bij een spookevent met beperkte schade · <span class="sev nit">nit</span> of laat gaan bij best-effort events met TTL of rebuild. Vraag bij twijfel wat de consumer met het event doet: de zwaarte zit aan de ontvangende kant.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Dit is een dual write, gebruik het outbox-pattern.</p><p style="color:var(--muted);font-size:14px">Een patroonnaam als oordeel. Geen scenario, geen gevolg, en een voorstel dat veel werk is zonder dat de auteur weet waarom. Wordt beantwoord met "Kafka is nooit down".</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>kafka.send</code> staat binnen de transactie, en die kan daarna nog falen: de <code>@Version</code>-check op <code>Order</code> gebeurt pas bij de flush vlak voor de commit. Bij een gelijktijdige annulering staat <code>OrderPaid</code> al op het topic terwijl de order terugrolt naar <code>CANCELLED</code>.</p><p><b>Gevolg:</b> de warehouse verzendt geannuleerde orders. Omgekeerd: bij een broker-storing commit de order en faalt de send stil (de future wordt niet bekeken), en dan wordt een betaalde order nooit verzonden.</p><p><b>Voorstel:</b> schrijf het event in dezelfde transactie naar de outbox-tabel (die hebben we al in <code>payment-service</code>) en laat de relay publiceren. <code>AFTER_COMMIT</code> lost alleen de eerste helft op. Is <code>ShipmentCreator</code> al idempotent op <code>eventId</code>?</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: twee services. <code>order-service</code> publiceert een terugbetalingsverzoek als een betaalde order wordt geannuleerd; <code>payment-service</code> voert de refund uit bij de PSP. <code>PspClient.refund</code> is een HTTP-call (200–2000 ms) en accepteert optioneel een idempotency key. <code>OutboxRepository</code> is de outbox uit fix A, met een werkende relay. De Kafka-listener draait met de standaard <code>DefaultErrorHandler</code>.</p>
+  <div class="diff">
+    <div class="diff-head">PR #518 · Refund bij annuleren van een betaalde order</div>
+<pre><span><span class="ln">1</span>// OrderCancellationService.java (order-service)</span><span><span class="ln">2</span>@Service</span><span><span class="ln">3</span>public class OrderCancellationService {</span><span><span class="ln">4</span></span><span><span class="ln">5</span>    private final OrderRepository orders;</span><span><span class="ln">6</span>    private final ApplicationEventPublisher events;</span><span><span class="ln">7</span></span><span><span class="ln">8</span>    // constructor-injectie weggelaten</span><span><span class="ln">9</span></span><span><span class="ln">10</span>    public void cancel(UUID orderId, CancelReason reason) {</span><span><span class="ln">11</span>        var order = orders.findById(orderId)</span><span><span class="ln">12</span>                .orElseThrow(() -&gt; new OrderNotFoundException(orderId));</span><span><span class="ln">13</span>        if (order.isShipped()) {</span><span><span class="ln">14</span>            throw new OrderAlreadyShippedException(orderId);</span><span><span class="ln">15</span>        }</span><span><span class="ln">16</span>        doCancel(order, reason);</span><span><span class="ln">17</span>    }</span><span><span class="ln">18</span></span><span><span class="ln">19</span>    @Transactional</span><span><span class="ln">20</span>    public void doCancel(Order order, CancelReason reason) {</span><span><span class="ln">21</span>        order.cancel(reason);</span><span><span class="ln">22</span>        orders.save(order);</span><span><span class="ln">23</span>        events.publishEvent(new OrderCancelled(order.getId(), order.getPaymentId(), order.getPaidAmount()));</span><span><span class="ln">24</span>    }</span><span><span class="ln">25</span>}</span><span><span class="ln">26</span></span><span><span class="ln">27</span>// RefundRequestPublisher.java (order-service)</span><span><span class="ln">28</span>@Component</span><span><span class="ln">29</span>class RefundRequestPublisher {</span><span><span class="ln">30</span></span><span><span class="ln">31</span>    private final KafkaTemplate&lt;String, RefundRequested&gt; kafka;</span><span><span class="ln">32</span></span><span><span class="ln">33</span>    RefundRequestPublisher(KafkaTemplate&lt;String, RefundRequested&gt; kafka) {</span><span><span class="ln">34</span>        this.kafka = kafka;</span><span><span class="ln">35</span>    }</span><span><span class="ln">36</span></span><span><span class="ln">37</span>    @TransactionalEventListener</span><span><span class="ln">38</span>    void on(OrderCancelled e) {</span><span><span class="ln">39</span>        kafka.send("refund-requested", e.orderId().toString(),</span><span><span class="ln">40</span>                new RefundRequested(UUID.randomUUID(), e.orderId(), e.paymentId(), e.amount()));</span><span><span class="ln">41</span>    }</span><span><span class="ln">42</span>}</span><span><span class="ln">43</span></span><span><span class="ln">44</span>// RefundRequestedConsumer.java (payment-service)</span><span><span class="ln">45</span>@Component</span><span><span class="ln">46</span>class RefundRequestedConsumer {</span><span><span class="ln">47</span></span><span><span class="ln">48</span>    private final PaymentRepository payments;</span><span><span class="ln">49</span>    private final RefundRepository refunds;</span><span><span class="ln">50</span>    private final PspClient psp;</span><span><span class="ln">51</span>    private final OutboxRepository outbox;</span><span><span class="ln">52</span></span><span><span class="ln">53</span>    // constructor-injectie weggelaten</span><span><span class="ln">54</span></span><span><span class="ln">55</span>    @KafkaListener(topics = "refund-requested", groupId = "payment-service")</span><span><span class="ln">56</span>    @Transactional</span><span><span class="ln">57</span>    public void on(RefundRequested r) {</span><span><span class="ln">58</span>        var payment = payments.findById(r.paymentId())</span><span><span class="ln">59</span>                .orElseThrow(() -&gt; new PaymentNotFoundException(r.paymentId()));</span><span><span class="ln">60</span>        var pspRef = psp.refund(payment.getPspReference(), r.amount());</span><span><span class="ln">61</span>        refunds.save(Refund.confirmed(r.refundId(), payment.getId(), r.amount(), pspRef));</span><span><span class="ln">62</span>        outbox.append(OutboxMessage.of("refund-completed", r.orderId().toString(),</span><span><span class="ln">63</span>                new RefundCompleted(UUID.randomUUID(), r.refundId(), r.orderId(), r.amount())));</span><span><span class="ln">64</span>    }</span><span><span class="ln">65</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regels 16 en 19–23</b> <span class="sev blocker">blocker</span> <i>Uit module 1, met een gevolg uit deze module.</i> <code>doCancel</code> wordt via <code>this</code> aangeroepen, dus de proxy wordt overgeslagen en er is geen transactie. <code>orders.save</code> commit in zijn eigen repository-transactie, en <code>publishEvent</code> gebeurt daarna zonder actieve transactie. Een <code>@TransactionalEventListener</code> zonder <code>fallbackExecution</code> wordt dan overgeslagen, met alleen een <code>DEBUG</code>-regel. Resultaat: <em>elke</em> annulering wordt opgeslagen en <em>geen enkele</em> refund wordt aangevraagd. Een unit-test die <code>doCancel</code> direct aanroept ziet dit niet; alleen een integratietest via de Spring-context die controleert dat er een refund-verzoek uitgaat. Voorstel: <code>@Transactional</code> op <code>cancel</code> (dan valt ook de status-check binnen de transactie) en <code>doCancel</code> private maken.</p>
+      <p><b>Regels 37–41</b> <span class="sev major">major</span> Ook met een werkende transactie is dit een dual write in volgorde B: een crash of broker-storing na de commit en de refund is weg; de <code>CompletableFuture</code> van <code>send</code> wordt niet bekeken en een exception in de listener wordt alleen gelogd. Major in plaats van blocker omdat het venster klein is, maar het gaat om geld van de klant zonder dat iemand het merkt. Voorstel: schrijf <code>RefundRequested</code> in <code>cancel</code> naar de outbox, zoals <code>payment-service</code> al doet. Dan staat ook het <code>refundId</code> vast in de rij; nu maakt elke herhaalde publicatie een nieuwe <code>UUID</code> en is deduplicatie downstream onmogelijk.</p>
+      <p><b>Regels 57–61</b> <span class="sev blocker">blocker</span> De consumer is niet idempotent, en het effect is een terugbetaling. Hetzelfde <code>RefundRequested</code> kan twee keer binnenkomen (rebalance na verwerking maar vóór de offset-commit, of een dubbel uit een outbox-relay), en elke levering roept <code>psp.refund</code> aan zonder idempotency key. Erger: faalt regel 61 of 62 na een geslaagde refund, dan rolt de transactie terug, en de standaard <code>DefaultErrorHandler</code> (<code>FixedBackOff(0L, 9)</code>) levert het record tot 10 keer af, direct achter elkaar: tot 10 terugbetalingen. Voorstel: <code>r.refundId()</code> als idempotency key naar de PSP, en een unieke constraint op <code>refund.refund_id</code> om dubbele verwerking te vangen.</p>
+      <p><b>Regels 56 en 60</b> <span class="sev major">major</span> <i>Uit module 1.</i> Een HTTP-call van tot 2 s binnen de databasetransactie: per bericht een connectie vast, en bij een trage PSP raakt de pool leeg voor de hele service. En de refund is al gebeurd als de commit daarna faalt. Voorstel: splits zoals in module 1. Transactie 1 legt de refund vast als <code>REQUESTED</code> (unieke <code>refund_id</code> is meteen je deduplicatie), dan de PSP-call met idempotency key buiten een transactie, en transactie 2 zet hem op <code>CONFIRMED</code> en schrijft de outbox-rij.</p>
+      <p><b>Regels 62–63</b> <span class="sev ok">geen probleem</span> De afleider. Een event versturen vanuit een consumer, binnen een <code>@Transactional</code>: lijkt een nieuwe dual write, maar <code>outbox.append</code> is een insert in dezelfde database en dezelfde transactie als <code>refunds.save</code>. Rolt die terug, dan verdwijnt de outbox-rij mee; de relay ziet alleen gecommitte rijen. Dit is precies hoe het hoort. (Bij de splitsing hierboven verhuist het naar transactie 2.)</p>
+      <p><b>Bonus</b> <span class="sev minor">vraag</span> Regels 11–16 lezen de order buiten een transactie en controleren <code>isShipped()</code>; een gelijktijdige verzending kan ertussen komen. Heeft <code>Order</code> een <code>@Version</code>? Dat is stof voor module 4.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · voorspellen</span></div>
+      <p class="situ">Twee varianten van dezelfde listener. De <code>@Transactional</code>-methode die <code>OrderPaid</code> publiceert, gooit ná <code>publishEvent</code> nog een <code>RuntimeException</code> en rolt terug.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · @EventListener</p>
+<pre class="snip">@EventListener
+void on(OrderPaid e) {
+    kafka.send("order-paid", key(e), e);
+}</pre></div>
+        <div><p class="snip-label">B · @TransactionalEventListener</p>
+<pre class="snip">@TransactionalEventListener
+void on(OrderPaid e) {
+    kafka.send("order-paid", key(e), e);
+}</pre></div>
+      </div>
+      <p class="ask">In welke variant komt het event op Kafka terecht?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Alleen in A: daar is het een spookevent. B publiceert niets.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>@EventListener</code> draait synchroon tijdens <code>publishEvent</code>, dus binnen de transactie en vóór de rollback.</li>
+          <li><code>@TransactionalEventListener</code> registreert zich bij de transactie en draait alleen na een geslaagde commit (standaardfase <code>AFTER_COMMIT</code>).</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>B is beter, maar niet veilig: een crash na de commit en vóór de send verliest het event nog steeds.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 1 · herkennen</span></div>
+      <p class="situ">Een nachtelijke job laat onbetaalde orders verlopen. <code>OrderExpired</code> wordt opgepikt door een <code>@TransactionalEventListener</code> die de voorraadreservering vrijgeeft.</p>
+<pre class="snip">@Scheduled(cron = "0 0 3 * * *")
+public void expireUnpaid() {
+    for (var order : orders.findUnpaidOlderThan(Duration.ofHours(24))) {
+        order.expire();
+        orders.save(order);
+        events.publishEvent(new OrderExpired(order.getId()));
+    }
+}</pre>
+      <p class="ask">Wordt de voorraad vrijgegeven?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee. Er is geen actieve transactie, dus de listener wordt stil overgeslagen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>expireUnpaid</code> heeft geen <code>@Transactional</code>; elke <code>save</code> commit in zijn eigen repository-transactie, die al voorbij is bij <code>publishEvent</code>.</li>
+          <li>Zonder transactie draait een <code>@TransactionalEventListener</code> niet, tenzij <code>fallbackExecution = true</code>. Spring logt dat alleen op <code>DEBUG</code>.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue (blocking):</b> <code>publishEvent</code> gebeurt hier buiten een transactie, dus de <code>@TransactionalEventListener</code> in <code>StockReleaser</code> draait nooit en de reserveringen blijven staan. Verwerk elke order in een eigen transactie (bijv. een <code>TransactionTemplate</code> per order, zodat één fout niet de hele batch terugrolt). <code>fallbackExecution = true</code> laat de listener wel draaien, maar zonder commitgarantie.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · ontwerpen</span></div>
+      <p class="situ">Een collega maakt de warehouse-consumer idempotent. Om de dedup-tabel "los te houden" zet hij die in een eigen bean met <code>REQUIRES_NEW</code>.</p>
+<pre class="snip">@KafkaListener(topics = "order-paid", groupId = "warehouse")
+@Transactional
+public void on(OrderPaid e) {
+    if (!dedup.markProcessed(e.eventId())) return;  // REQUIRES_NEW
+    shipments.create(e.orderId());                 // kan falen
+}</pre>
+      <p class="ask">Wat gebeurt er als <code>shipments.create</code> een exception gooit?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Het event is als verwerkt gemarkeerd zonder dat er een zending is: bij de volgende levering wordt het overgeslagen, en de zending komt er nooit.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>REQUIRES_NEW</code> commit de markering direct, los van de buitenste transactie.</li>
+          <li>De exception rolt alleen de zending terug. De error handler levert opnieuw af, en <code>markProcessed</code> geeft dan <code>false</code>.</li>
+          <li>De dubbel-check en het effect moeten in dezelfde transactie zitten: allebei of geen van beide. Hetzelfde principe als de outbox, aan de andere kant.</li>
+        </ul>
+        <p class="a-lbl">Alternatief</p>
+        <ul><li>Een unieke constraint op <code>shipment.order_id</code>: het effect zelf is dan idempotent en je hebt geen dedup-tabel nodig.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 2 · kiezen en verdedigen</span></div>
+      <p class="situ">De outbox-relay loopt achter. Een PR schaalt hem op naar drie instanties; dankzij <code>FOR UPDATE SKIP LOCKED</code> pakken ze elk een andere batch. Een klant betaalt en annuleert binnen een seconde: <code>OrderPaid</code> en <code>OrderCancelled</code> voor dezelfde order staan kort na elkaar in de outbox.</p>
+      <p class="ask">Welk risico introduceert de PR, en wat stel je voor?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">De volgorde per order is niet meer gegarandeerd: de warehouse kan <code>OrderCancelled</code> vóór <code>OrderPaid</code> zien en alsnog verzenden.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Beide events krijgen dezelfde key en dus dezelfde partitie, maar Kafka bewaart alleen de volgorde waarin ze <em>aankomen</em>.</li>
+          <li>Twee relays met elk één van de twee rijen versturen tegelijk; wie het eerst bij de broker is, wint.</li>
+        </ul>
+        <p class="a-lbl">Opties</p>
+        <ul>
+          <li>Eén actieve relay (leader election of ShedLock) die grotere batches verstuurt zonder per bericht te wachten: vaak genoeg.</li>
+          <li>Relays verdelen op <code>hash(message_key)</code>, zodat elke key bij één relay hoort.</li>
+          <li>CDC (Debezium): volgorde uit de write-ahead log.</li>
+          <li>Hoe dan ook: een consumer die een versienummer of status-overgang controleert, is robuuster dan een die op volgorde vertrouwt.</li>
+        </ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">Twee listeners in dezelfde PR, allebei met <code>@TransactionalEventListener</code> (<code>AFTER_COMMIT</code>).</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · cache, TTL 5 min</p>
+<pre class="snip">void on(ProductRepriced e) {
+    priceCache.evict(e.sku());
+}</pre></div>
+        <div><p class="snip-label">B · naar de warehouse</p>
+<pre class="snip">void on(OrderPaid e) {
+    kafka.send("order-paid", key(e), e);
+}</pre></div>
+      </div>
+      <p class="ask">Welke zwaarte geef je aan elk, en wat schrijf je bij B?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A: laat gaan. B: <span class="sev blocker">blocker</span>, tenzij er een reconciliatie is (dan <span class="sev major">major</span>).</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>A: een gemiste eviction betekent hooguit vijf minuten een oude prijs. De TTL is het vangnet; <code>AFTER_COMMIT</code> voorkomt dat je evict voordat de nieuwe prijs gecommit is. Goed gekozen.</li>
+          <li>B: hetzelfde mechanisme, maar een verloren event is een betaalde order die nooit wordt verzonden, en niemand merkt het.</li>
+          <li>De zwaarte zit niet in de code maar in wat de consumer met het event doet.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue (blocking):</b> <code>AFTER_COMMIT</code> voorkomt spookevents, maar als het proces na de commit stopt (deploy, OOM) of de broker even weg is, gaat <code>OrderPaid</code> verloren, en de send-future wordt niet gecontroleerd. Dan wordt een betaalde order nooit verzonden. Kunnen we het event in dezelfde transactie naar de outbox schrijven? Bij de cache-listener hierboven is <code>AFTER_COMMIT</code> wel precies goed.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Spring Framework Reference, Data Access › Transaction Management › <a href="https://docs.spring.io/spring-framework/reference/data-access/transaction/event.html">Transaction-bound Events</a>: fasen van <code>@TransactionalEventListener</code> en <code>fallbackExecution</code>.</li>
+    <li>Chris Richardson, microservices.io: <a href="https://microservices.io/patterns/data/transactional-outbox.html">Pattern: Transactional outbox</a>: polling publisher vs transaction log tailing, en de nadelen (dubbelen, volgorde).</li>
+    <li>Spring Modulith Reference, <a href="https://docs.spring.io/spring-modulith/reference/events.html">Working with Application Events</a>: de secties over de Event Publication Registry en het externaliseren van events.</li>
+    <li>Spring for Apache Kafka Reference, <a href="https://docs.spring.io/spring-kafka/reference/kafka/transactions.html">Transactions</a>: de sectie over synchronisatie met een databasetransactie, en waarom dat geen atomiciteit geeft.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>
