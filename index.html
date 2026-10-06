@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="8-weeks leer- en toetsplan om code te reviewen op het niveau van een senior Java-developer.">
+<title>Leerplan Senior Java Reviewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: één leeskolom met sticky inhoudsopgave links op brede schermen; PR-diff-achtige blokken als terugkerend motief */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0}
+img{max-width:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+.wrap{max-width:1120px;margin:0 auto;padding-block:48px 80px;display:grid;grid-template-columns:220px minmax(0,1fr);gap:56px}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);gap:24px;padding-block:28px 60px}nav.toc{display:none}}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;font-size:14px}
+nav.toc p{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+nav.toc a{color:var(--muted);text-decoration:none}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--accent)}
+main{min-width:0}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(34px,5vw,52px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:28px;font-weight:750;margin-top:64px;padding-top:20px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600}
+p,li{max-width:68ch}
+a{color:var(--accent)}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+.lede{font-size:20px;color:var(--muted);margin:16px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 24px;margin-top:24px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg);font-weight:600}
+
+.diff{margin-top:32px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.comment{border-top:1px solid var(--line);padding:12px 14px;font-size:15px;display:grid;gap:4px}
+.comment p{margin:0}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)}
+
+.domains{display:grid;gap:14px;margin-top:24px}
+details.dom{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.dom summary{cursor:pointer;padding:14px 18px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline;list-style:none}
+details.dom summary::-webkit-details-marker{display:none}
+details.dom summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+.dom-id{font-family:var(--f-mono);font-size:13px;color:var(--accent);font-weight:600}
+.dom-sub{display:block;color:var(--muted);font-size:14px;font-family:var(--f-body);font-weight:400;margin-top:2px}
+.chev{font-family:var(--f-mono);color:var(--muted);font-size:13px;display:inline-block}
+details[open] .chev{transform:rotate(90deg)}
+.dom-body{padding:0 18px 18px 18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px}
+.dom-body h4{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px;font-weight:600}
+.dom-body ul{margin:0;padding-left:18px;font-size:15px}
+.dom-body li{margin:2px 0}
+.dom-body .flags li::marker{content:"⚑  ";color:var(--major)}
+
+.ladder{counter-reset:step;list-style:none;padding:0;margin:24px 0 0;display:grid;gap:10px}
+.ladder li{counter-increment:step;display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:baseline;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;max-width:none}
+.ladder li::before{content:counter(step);font-family:var(--f-mono);font-weight:600;color:var(--accent)}
+.ladder b{font-weight:600}
+.ladder span.q{display:block;color:var(--muted);font-size:15px}
+
+.tbl{overflow-x:auto;margin-top:24px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:720px}
+th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}
+th{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--code-bg)}
+tr:last-child td{border-bottom:0}
+td.wk{font-family:var(--f-mono);font-weight:600;color:var(--accent);white-space:nowrap}
+td ul{margin:0;padding-left:16px} td li{margin:2px 0}
+.dlabel{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+
+.split{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:24px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px 18px;min-width:0}
+.box h3{margin-bottom:6px}
+.box p{margin:0;font-size:15px;color:var(--muted)}
+.big{font-family:var(--f-display);font-size:30px;font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums}
+
+.rubric td:first-child{font-weight:600;white-space:nowrap}
+.callout{margin-top:24px;padding:16px 18px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.sources{columns:2 300px;column-gap:32px;padding-left:18px;font-size:15px}
+.sources li{break-inside:avoid;margin-bottom:8px}
+.sources .tag{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+footer{margin-top:64px;color:var(--muted);font-size:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="toc" aria-label="Inhoud">
+  <p>Inhoud</p>
+  <ol>
+    <li><a href="#doel">Doelbeeld</a></li>
+    <li><a href="#volgorde">Reviewvolgorde</a></li>
+    <li><a href="#domeinen">Kennisdomeinen</a></li>
+    <li><a href="#plan">8-wekenplan</a></li>
+    <li><a href="#ritme">Weekritme</a></li>
+    <li><a href="#toetsing">Toetsing</a></li>
+    <li><a href="#rubric">Niveau-rubric</a></li>
+    <li><a href="#bronnen">Bronnen</a></li>
+  </ol>
+</nav>
+
+<main>
+<header>
+  <p class="eyebrow">Persoonlijk leerplan · Qun Wang</p>
+  <h1>Leerplan Senior Java Reviewer</h1>
+  <p class="lede">Van roestige senior naar een reviewer die op het niveau van zeven jaar Java-ervaring de juiste problemen vindt, ze op de juiste zwaarte benoemt en verbeteringen kan onderbouwen.</p>
+  <div class="meta">
+    <span><b>Duur</b> 8 weken</span>
+    <span><b>Inzet</b> 10–12 uur per week</span>
+    <span><b>Stack</b> Java 25 LTS · Spring Boot 4 · microservices · design patterns</span>
+    <span><b>Opgesteld</b> 6 oktober 2026</span>
+  </div>
+
+  <div class="diff" aria-label="Voorbeeld van een reviewcomment">
+    <div class="diff-head"><span>OrderService.java</span><span>zo ziet een goede reviewcomment eruit</span></div>
+<pre><span class="d">-   public void placeOrder(Order order) {</span><span class="a">+   @Transactional</span><span class="a">+   public void placeOrder(Order order) {</span><span class="a">+       this.saveAndPublish(order);   // saveAndPublish is @Transactional(REQUIRES_NEW)</span></pre>
+    <div class="comment">
+      <p><span class="sev blocker">blocker</span> &nbsp;<b>Self-invocation omzeilt de Spring-proxy.</b></p>
+      <p>Omdat <code>saveAndPublish</code> via <code>this</code> wordt aangeroepen, wordt <code>REQUIRES_NEW</code> genegeerd en loopt alles in één transactie. Bij een rollback verdwijnt ook het event. Voorstel: verplaats publicatie naar een aparte bean, of gebruik het outbox-patroon zodat opslaan en publiceren atomair zijn.</p>
+    </div>
+  </div>
+</header>
+
+<section id="doel">
+  <h2>Doelbeeld: wat een senior reviewer kan</h2>
+  <p>Een reviewer op dit niveau leest meer dan syntaxis. Het verschil met een medior zit in vier vaardigheden, en het plan traint ze alle vier.</p>
+  <div class="split">
+    <div class="box"><h3>Zien</h3><p>Herkent bugs, ontwerpproblemen en risico's in transacties, concurrency en security die tools als SonarQube niet vinden.</p></div>
+    <div class="box"><h3>Wegen</h3><p>Onderscheidt een blocker van een nit en weet wanneer "goed genoeg" goed genoeg is. Kent de afwegingen achter principes.</p></div>
+    <div class="box"><h3>Onderbouwen</h3><p>Legt uit waarom iets een probleem is, met een concreet alternatief. Verwijst naar een principe, niet naar smaak.</p></div>
+    <div class="box"><h3>Communiceren</h3><p>Schrijft feedback die de auteur iets leert en die het team sneller maakt in plaats van trager.</p></div>
+  </div>
+</section>
+
+<section id="volgorde">
+  <h2>De volgorde waarin je een PR leest</h2>
+  <p>Seniors reviewen van grof naar fijn. Begin nooit bij naamgeving: als het ontwerp niet klopt, verandert de code toch nog. Deze ladder komt terug in elke oefening.</p>
+  <ol class="ladder">
+    <li><div><b>Doel en scope</b><span class="q">Lost dit het juiste probleem op? Is de PR klein genoeg om goed te reviewen?</span></div><span class="sev blocker">blocker</span></li>
+    <li><div><b>Correctheid</b><span class="q">Edge cases, null, foutpaden, transacties, concurrency, idempotentie.</span></div><span class="sev blocker">blocker</span></li>
+    <li><div><b>Security en data</b><span class="q">Input-validatie, autorisatie, secrets, PII in logs, SQL/JPQL-injectie.</span></div><span class="sev blocker">blocker</span></li>
+    <li><div><b>Ontwerp en architectuur</b><span class="q">Juiste laag, juiste verantwoordelijkheid, afhankelijkheidsrichting, koppeling.</span></div><span class="sev major">major</span></li>
+    <li><div><b>Tests</b><span class="q">Testen ze gedrag in plaats van implementatie? Zou een bug ze laten falen?</span></div><span class="sev major">major</span></li>
+    <li><div><b>Operabiliteit</b><span class="q">Logging, metrics, timeouts, retries, backward-compatibiliteit van API's en schema's.</span></div><span class="sev major">major</span></li>
+    <li><div><b>Leesbaarheid</b><span class="q">Namen, functiegrootte, abstractieniveau, onnodige complexiteit.</span></div><span class="sev minor">minor</span></li>
+    <li><div><b>Stijl</b><span class="q">Alleen wat de formatter of linter niet afdwingt. Liever automatiseren dan commentaar geven.</span></div><span class="sev nit">nit</span></li>
+  </ol>
+</section>
+
+<section id="domeinen">
+  <h2>Kennisdomeinen</h2>
+  <p>Dit is de kennisinventaris. Per domein staat wat je moet beheersen en waar je in een review op let (⚑). Klik een domein open.</p>
+  <div class="domains">
+
+    <details class="dom" open>
+      <summary><span class="dom-id">D1</span><span><h3>Modern Java (17 → 25)</h3><span class="dom-sub">De taal zoals die nu geschreven hoort te worden</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Records, sealed interfaces, pattern matching in <code>switch</code> en record patterns</li>
+          <li>Virtual threads (Java 21), scoped values (final in 25), structured concurrency (preview)</li>
+          <li>Streams, collectors, <code>Optional</code> als returntype</li>
+          <li>Generics: PECS, wildcards, type erasure</li>
+          <li><code>equals</code>/<code>hashCode</code>/<code>compareTo</code>-contracten, immutability</li>
+          <li>Exceptions: checked vs unchecked, exception-vertaling, nooit slikken</li>
+          <li>Keuze van collections en hun complexiteit</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li><code>Optional</code> als veld of parameter, of <code>.get()</code> zonder check</li>
+          <li><code>instanceof</code>-ketens die een sealed type met switch moeten zijn</li>
+          <li>Mutable DTO's waar een record past</li>
+          <li>Side effects in streams, <code>peek</code> voor logica</li>
+          <li>Lege <code>catch</code>, <code>catch (Exception e)</code>, verloren stacktrace</li>
+          <li>Thread-locals of zware objecten per virtual thread</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D2</span><span><h3>Clean code en refactoring</h3><span class="dom-sub">Leesbaarheid, code smells, veilige kleine stappen</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Naamgeving die intentie uitdrukt, één abstractieniveau per methode</li>
+          <li>Fowler's catalogus van code smells: long method, feature envy, primitive obsession, shotgun surgery, data clumps</li>
+          <li>De bijbehorende refactorings: extract method/class, replace conditional with polymorphism, introduce parameter object</li>
+          <li>Cognitive complexity vs cyclomatic complexity</li>
+          <li>KISS, YAGNI, DRY, en wanneer DRY verkeerde koppeling veroorzaakt</li>
+          <li>Kritische blik op <em>Clean Code</em>: welke adviezen achterhaald of te dogmatisch zijn</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Boolean-parameters die het gedrag splitsen</li>
+          <li>Commentaar dat uitlegt <em>wat</em> in plaats van <em>waarom</em></li>
+          <li>Magic numbers en strings</li>
+          <li>Abstractie die voor één geval is gebouwd (speculatieve generaliteit)</li>
+          <li>Refactoring en gedragswijziging gemengd in één PR</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D3</span><span><h3>Ontwerpprincipes en design patterns</h3><span class="dom-sub">SOLID, koppeling en cohesie, GoF met mate</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>SOLID, met per principe een echt voorbeeld van een schending en de oplossing</li>
+          <li>Koppeling en cohesie, Law of Demeter, tell-don't-ask</li>
+          <li>Composition over inheritance</li>
+          <li>Patterns die je in Java echt tegenkomt: Strategy, Factory, Builder, Decorator, Adapter, Template Method, Observer, Chain of Responsibility</li>
+          <li>Hoe Spring patterns al levert (proxy, template, DI), zodat je ze niet zelf bouwt</li>
+          <li>Anti-patterns: god class, anemic domain model, service locator, singleton-misbruik</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Grote <code>switch</code>/<code>if</code> op type die bij elke uitbreiding groeit (OCP)</li>
+          <li>Interface met één implementatie zonder reden</li>
+          <li>Subklasse die een methode leeg of met een exception overschrijft (LSP)</li>
+          <li>Patterns toegepast omdat het kan, niet omdat het probleem erom vraagt</li>
+          <li>Ketens als <code>a.getB().getC().doX()</code></li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D4</span><span><h3>Testen</h3><span class="dom-sub">Tests die bugs vangen en refactoring overleven</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Testpiramide vs testing trophy, wat een "unit" is (classical vs London school)</li>
+          <li>JUnit 5/6, AssertJ, parameterized tests, Mockito en wanneer je <em>niet</em> mockt</li>
+          <li>Spring test slices (<code>@WebMvcTest</code>, <code>@DataJpaTest</code>) vs <code>@SpringBootTest</code></li>
+          <li>Testcontainers voor database en Kafka</li>
+          <li>Contract testing (Spring Cloud Contract, Pact)</li>
+          <li>Mutation testing met PIT, architectuurtests met ArchUnit</li>
+          <li>TDD als ontwerptechniek</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Tests die implementatie testen (<code>verify</code> op elke interne aanroep)</li>
+          <li>Ontbrekende tests voor foutpaden en randgevallen</li>
+          <li>Database mocken waar Testcontainers kan</li>
+          <li><code>Thread.sleep</code>, tijdafhankelijkheid zonder <code>Clock</code>, flaky volgorde</li>
+          <li>Testnamen die het verwachte gedrag niet beschrijven</li>
+          <li>Hoge coverage met zwakke asserts</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D5</span><span><h3>Spring Boot 4 en JPA</h3><span class="dom-sub">Waar de meeste productiebugs in Spring-projecten zitten</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>DI via constructor, bean scopes, proxies en hun gevolgen</li>
+          <li><code>@Transactional</code>: propagation, readOnly, rollback-regels, self-invocation</li>
+          <li>JPA/Hibernate: N+1, lazy loading, fetch joins, entity graphs, open-in-view, dirty checking, <code>equals</code> op entities</li>
+          <li><code>@ConfigurationProperties</code>, profielen, validatie</li>
+          <li>REST: resource-ontwerp, statuscodes, <code>ProblemDetail</code>, Bean Validation</li>
+          <li>Nieuw in Spring Boot 4 / Framework 7: API-versioning, JSpecify null-safety, ingebouwde retry en concurrency-limieten, Jackson 3</li>
+          <li>Spring Security basis: filter chain, method security</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Field injection met <code>@Autowired</code></li>
+          <li>Entities direct als API-response</li>
+          <li><code>@Transactional</code> op private methoden of via <code>this</code></li>
+          <li>Remote calls binnen een databasetransactie</li>
+          <li>Loops over lazy relaties (N+1)</li>
+          <li><code>spring.jpa.open-in-view</code> aan laten staan</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D6</span><span><h3>Applicatie-architectuur</h3><span class="dom-sub">Grenzen binnen één service</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Layered vs hexagonal (ports and adapters) vs clean architecture</li>
+          <li>Package-by-feature vs package-by-layer</li>
+          <li>DDD tactisch: entities, value objects, aggregates, domain events, repositories</li>
+          <li>DDD strategisch: bounded contexts, context mapping</li>
+          <li>Modulaire monoliet met Spring Modulith</li>
+          <li>Architecture Decision Records (ADR's) en fitness functions</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Domeinlogica in controllers of in de persistence-laag</li>
+          <li>Domein dat afhangt van Spring-, JPA- of HTTP-klassen</li>
+          <li>Cyclische afhankelijkheden tussen packages</li>
+          <li>Invarianten die buiten het aggregate worden bewaakt</li>
+          <li>Architectuurkeuze zonder vastgelegde reden</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D7</span><span><h3>Microservices en gedistribueerde systemen</h3><span class="dom-sub">Alles wat misgaat zodra er een netwerk tussen zit</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Servicegrenzen, sync vs async communicatie</li>
+          <li>Kafka: partities, ordering, consumer groups, at-least-once, idempotente consumers</li>
+          <li>Transactional outbox, sagas (choreografie vs orkestratie)</li>
+          <li>Resilience: timeouts, retries met backoff, circuit breaker, bulkhead</li>
+          <li>Observability: gestructureerde logs, Micrometer-metrics, OpenTelemetry-tracing</li>
+          <li>API- en schema-evolutie, backward compatibility</li>
+          <li>12-factor, Docker-images, Kubernetes-probes en resource limits</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>HTTP-client zonder timeout</li>
+          <li>Retry op niet-idempotente operaties</li>
+          <li>Database-commit en Kafka-publish zonder outbox (dual write)</li>
+          <li>Breaking change in een event- of API-contract</li>
+          <li>Gedeelde database tussen services</li>
+          <li>Geen correlatie-ID in logs</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D8</span><span><h3>Concurrency en performance</h3><span class="dom-sub">De bugs die pas in productie opduiken</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Java Memory Model, happens-before, <code>volatile</code>, atomics</li>
+          <li>Thread-safety van Spring singletons</li>
+          <li><code>ConcurrentHashMap</code>, <code>CompletableFuture</code>, executors</li>
+          <li>Virtual threads: wanneer ze helpen, pinning, thread-local-gebruik</li>
+          <li>Big-O in de praktijk, geheugengebruik, profilen met JFR</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>Mutable state in een singleton-bean</li>
+          <li>Check-then-act op gedeelde maps</li>
+          <li><code>SimpleDateFormat</code> of andere niet-thread-safe klassen gedeeld</li>
+          <li>Ongebonden caches en queues</li>
+          <li>O(n²) verborgen in streams of geneste lookups</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D9</span><span><h3>Security</h3><span class="dom-sub">OWASP Top 10 vanuit de reviewersstoel</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>OWASP Top 10, met nadruk op broken access control en injectie</li>
+          <li>Authenticatie vs autorisatie, OAuth2/JWT-basis</li>
+          <li>Secrets management, dependency-scanning (OWASP Dependency-Check, Snyk)</li>
+          <li>Veilig loggen: geen tokens, wachtwoorden of PII</li>
+        </ul></div>
+        <div><h4>Signaleren in review</h4><ul class="flags">
+          <li>String-concatenatie in SQL of JPQL</li>
+          <li>Endpoints zonder autorisatiecheck op objectniveau (IDOR)</li>
+          <li>Secrets in code of <code>application.yml</code></li>
+          <li>Exception-details naar de client</li>
+          <li>Deserialisatie van onvertrouwde input</li>
+        </ul></div>
+      </div>
+    </details>
+
+    <details class="dom">
+      <summary><span class="dom-id">D10</span><span><h3>Het reviewvak zelf</h3><span class="dom-sub">Proces, prioriteren en feedback geven</span></span><span class="chev">▸</span></summary>
+      <div class="dom-body">
+        <div><h4>Kennen</h4><ul>
+          <li>Google Engineering Practices: keur goed als de code de codebase gezonder maakt, niet pas als hij perfect is</li>
+          <li>Conventional Comments: labels als <span class="sev blocker">issue</span> <span class="sev minor">suggestion</span> <span class="sev minor">question</span> <span class="sev nit">nitpick</span></li>
+          <li>Wat tools vangen (Checkstyle, SpotBugs, Error Prone, SonarQube) en wat alleen mensen zien</li>
+          <li>PR-grootte, reviewtijd, review in rondes</li>
+          <li>Feedback als vraag of voorstel, met reden en alternatief</li>
+        </ul></div>
+        <div><h4>Signaleren bij jezelf</h4><ul class="flags">
+          <li>Twintig nits en één gemiste blocker</li>
+          <li>Smaak als regel presenteren</li>
+          <li>Alleen kritiek, nooit benoemen wat goed is</li>
+          <li>Commentaar zonder concreet alternatief</li>
+        </ul></div>
+      </div>
+    </details>
+
+  </div>
+</section>
+
+<section id="plan">
+  <h2>8-wekenplan</h2>
+  <p>Elke week combineert theorie, oefenen en een toets. Week 1 en 8 zijn meetmomenten, zodat je groei zichtbaar wordt. Weken 5 tot en met 7 bouwen voort op één eigen project.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Week</th><th>Thema</th><th>Theorie</th><th>Oefening</th><th>Toets</th></tr></thead>
+    <tbody>
+      <tr><td class="wk">W1</td><td><b>Nulmeting, reviewvak en modern Java</b><br><span class="dlabel">D1 · D10</span></td>
+        <td><ul><li>Google Engineering Practices: code review guide</li><li>Effective Java h. 2–3 en 10</li><li>JEP's van records, sealed classes, pattern matching</li></ul></td>
+        <td><ul><li>Nulmeting: 3 seeded PR's reviewen zonder voorbereiding</li><li>Java 8-stijl code omzetten naar Java 25-idioom</li></ul></td>
+        <td><ul><li>Recall-score nulmeting</li><li>Quiz D1</li></ul></td></tr>
+      <tr><td class="wk">W2</td><td><b>Clean code en refactoring</b><br><span class="dlabel">D2</span></td>
+        <td><ul><li>Refactoring (Fowler) h. 1–3 en smells-catalogus</li><li>Clean Code h. 2–4, kritisch gelezen</li></ul></td>
+        <td><ul><li>Gilded Rose-kata in Java: tests eerst, kleine stappen</li><li>Tennis Refactoring-kata</li></ul></td>
+        <td><ul><li>Seeded PR met 10 smells</li><li>Uitlegtoets: 5 smells verklaren</li></ul></td></tr>
+      <tr><td class="wk">W3</td><td><b>Ontwerpprincipes en patterns</b><br><span class="dlabel">D3</span></td>
+        <td><ul><li>SOLID met voorbeelden</li><li>Refactoring.guru: 8 kernpatterns</li><li>Effective Java h. 4</li></ul></td>
+        <td><ul><li>Elk pattern terugvinden in Spring-broncode</li><li>Switch-op-type refactoren naar Strategy</li></ul></td>
+        <td><ul><li>Seeded PR met ontwerpfouten</li><li>Quiz D3</li></ul></td></tr>
+      <tr><td class="wk">W4</td><td><b>Testen</b><br><span class="dlabel">D4</span></td>
+        <td><ul><li>Unit Testing Principles, Practices, and Patterns (Khorikov) h. 1–5</li><li>Spring Boot testing docs</li></ul></td>
+        <td><ul><li>Trip Service-kata: legacy testbaar maken</li><li>PIT draaien op eigen code en surviving mutants verklaren</li></ul></td>
+        <td><ul><li>Seeded PR met zwakke tests</li><li>Mutation score verhogen</li></ul></td></tr>
+      <tr><td class="wk">W5</td><td><b>Spring Boot 4, JPA en security</b><br><span class="dlabel">D5 · D9</span></td>
+        <td><ul><li>Release notes Spring Framework 7 / Boot 4</li><li>Vlad Mihalcea over N+1, open-in-view en transacties</li><li>OWASP Top 10</li></ul></td>
+        <td><ul><li>Kleine Spring Boot 4-service bouwen met Testcontainers</li><li>N+1 en self-invocation reproduceren en oplossen</li></ul></td>
+        <td><ul><li>Seeded PR met transactie-, JPA- en securitybugs</li><li>Quiz D5 en D9</li></ul></td></tr>
+      <tr><td class="wk">W6</td><td><b>Architectuur</b><br><span class="dlabel">D6</span></td>
+        <td><ul><li>Get Your Hands Dirty on Clean Architecture (Hombergs)</li><li>DDD Distilled (Vernon)</li><li>Spring Modulith docs</li></ul></td>
+        <td><ul><li>Service uit W5 ombouwen naar hexagonal</li><li>ArchUnit-regels toevoegen</li><li>Eén ADR schrijven</li></ul></td>
+        <td><ul><li>Architectuurreview van een open-source project</li><li>ADR laten beoordelen</li></ul></td></tr>
+      <tr><td class="wk">W7</td><td><b>Microservices en concurrency</b><br><span class="dlabel">D7 · D8</span></td>
+        <td><ul><li>Building Microservices (Newman), selectie</li><li>Release It! (Nygard): stability patterns</li><li>Java Concurrency in Practice h. 2–5</li></ul></td>
+        <td><ul><li>Tweede service toevoegen met Kafka en outbox</li><li>Idempotente consumer en retry met backoff</li></ul></td>
+        <td><ul><li>Seeded PR met dual write, timeouts en race conditions</li><li>Quiz D7 en D8</li></ul></td></tr>
+      <tr><td class="wk">W8</td><td><b>Integratie en eindtoets</b><br><span class="dlabel">D1–D10</span></td>
+        <td><ul><li>Eigen aantekeningen herzien</li></ul></td>
+        <td><ul><li>Eigen reviewchecklist van maximaal één pagina</li><li>Twee echte PR's reviewen met die checklist</li></ul></td>
+        <td><ul><li>Eindtoets (zie Toetsing)</li><li>Vergelijking met nulmeting</li></ul></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="ritme">
+  <h2>Weekritme</h2>
+  <p>Een vaste verdeling van ongeveer 11 uur. Lezen zonder oefenen beklijft niet, dus de oefen- en reviewblokken zijn de kern.</p>
+  <div class="split">
+    <div class="box"><div class="big">3 u</div><h3>Theorie</h3><p>Hoofdstukken lezen en per hoofdstuk drie kernregels in eigen woorden noteren.</p></div>
+    <div class="box"><div class="big">4 u</div><h3>Coderen</h3><p>Kata's en het eigen Spring Boot-project. Elk concept zelf breken en repareren.</p></div>
+    <div class="box"><div class="big">3 u</div><h3>Reviewen</h3><p>Eén seeded PR en één echte PR (werk of open source). Vergelijken met de antwoordsleutel.</p></div>
+    <div class="box"><div class="big">1 u</div><h3>Toets en reflectie</h3><p>Quiz, scores bijhouden, gemiste bevindingen toevoegen aan je checklist.</p></div>
+  </div>
+</section>
+
+<section id="toetsing">
+  <h2>Toetsing</h2>
+  <p>Reviewvaardigheid meet je niet met een kennisquiz alleen. Daarom vier vormen, elk met een duidelijke norm.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Vorm</th><th>Hoe</th><th>Wat het meet</th><th>Norm</th></tr></thead>
+    <tbody>
+      <tr><td><b>Seeded-defect PR</b></td><td>Een PR van 150–400 regels met bewust geplante problemen van verschillende zwaarte. Je reviewt in 45 minuten en vergelijkt daarna met de sleutel.</td><td><b>Recall</b>: gevonden ÷ geplant<br><b>Precisie</b>: terechte opmerkingen ÷ alle opmerkingen<br><b>Zwaarte</b>: juist ingeschaald</td><td class="num">Blockers en majors ≥ 80% recall in W8</td></tr>
+      <tr><td><b>Kennisquiz</b></td><td>15 vragen per domein: meerkeuze plus "wat is er mis met deze snippet".</td><td>Feitenkennis en herkenning</td><td class="num">≥ 80% goed</td></tr>
+      <tr><td><b>Uitlegtoets</b></td><td>Leg een concept uit alsof je het aan een medior uitlegt. Bijvoorbeeld: waarom werkt <code>@Transactional</code> niet bij self-invocation?</td><td>Of je kunt onderbouwen, niet alleen herkennen</td><td>Uitleg bevat oorzaak, gevolg en alternatief</td></tr>
+      <tr><td><b>Echte PR's</b></td><td>Review gemergede PR's uit projecten als Spring PetClinic of Spring Boot en vergelijk met de comments van maintainers. Of laat een senior collega jouw reviews beoordelen.</td><td>Transfer naar echte code</td><td>Minstens de helft van de maintainer-punten zelf gevonden</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 style="margin-top:32px">Eindtoets in week 8</h3>
+  <ul>
+    <li><b>Grote seeded PR</b>: een Spring Boot-microservice van ongeveer 600 regels met circa 20 geplante problemen over alle domeinen. 90 minuten.</li>
+    <li><b>Mondelinge verdediging</b>: licht je drie belangrijkste bevindingen toe, met alternatief en afweging.</li>
+    <li><b>ADR</b>: schrijf een architectuurbeslissing voor een van de gevonden ontwerpproblemen.</li>
+    <li><b>Vergelijking met nulmeting</b>: recall, precisie en zwaarte-inschatting naast elkaar.</li>
+  </ul>
+
+  <div class="callout"><p><b>Hulp van Claude.</b> Ik kan elke week de seeded PR's (met een antwoordsleutel die je pas na je review ziet), de quizzen en de beoordeling van je reviews en uitleg verzorgen. Je plakt je review in de chat en krijgt een score per domein.</p></div>
+</section>
+
+<section id="rubric">
+  <h2>Niveau-rubric</h2>
+  <p>Scoor jezelf per domein in week 1, 4 en 8. Het doel is overal minimaal niveau 3, en niveau 4 op de domeinen die je dagelijks raakt.</p>
+  <div class="tbl rubric"><table>
+    <thead><tr><th>Niveau</th><th>Kennis</th><th>In een review</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Herkent</td><td>Kent de term en de regel.</td><td>Vindt het probleem alleen als iemand erop wijst.</td></tr>
+      <tr><td>2 · Past toe</td><td>Past het correct toe in eigen code.</td><td>Vindt duidelijke gevallen, schaalt de zwaarte soms verkeerd in.</td></tr>
+      <tr><td>3 · Weegt af</td><td>Kent de afwegingen en uitzonderingen.</td><td>Vindt subtiele gevallen, geeft onderbouwing en alternatief, schat de zwaarte juist in.</td></tr>
+      <tr><td>4 · Leert anderen</td><td>Kan het uitleggen en vastleggen in teamafspraken.</td><td>Feedback leert de auteur iets; terugkerende punten worden tooling of ArchUnit-regels.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="bronnen">
+  <h2>Bronnen</h2>
+  <ul class="sources">
+    <li><b>Effective Java</b>, 3e druk, Joshua Bloch <span class="tag">D1 · kern</span></li>
+    <li><b>Refactoring</b>, 2e druk, Martin Fowler <span class="tag">D2 · kern</span></li>
+    <li><b>Clean Code</b>, Robert C. Martin, kritisch lezen <span class="tag">D2</span></li>
+    <li><b>Head First Design Patterns</b>, 2e druk, of <a href="https://refactoring.guru/design-patterns">refactoring.guru</a> <span class="tag">D3</span></li>
+    <li><b>Unit Testing Principles, Practices, and Patterns</b>, Vladimir Khorikov <span class="tag">D4 · kern</span></li>
+    <li><b>Growing Object-Oriented Software, Guided by Tests</b>, Freeman en Pryce <span class="tag">D4</span></li>
+    <li><b>High-Performance Java Persistence</b> en blog, Vlad Mihalcea <span class="tag">D5</span></li>
+    <li><a href="https://spring.io/blog/2025/11/20/spring-boot-4-0-0-available-now/">Spring Boot 4.0 release-aankondiging</a> <span class="tag">D5</span></li>
+    <li><b>Get Your Hands Dirty on Clean Architecture</b>, 2e druk, Tom Hombergs <span class="tag">D6 · kern</span></li>
+    <li><b>Domain-Driven Design Distilled</b>, Vaughn Vernon <span class="tag">D6</span></li>
+    <li><b>Building Microservices</b>, 2e druk, Sam Newman <span class="tag">D7</span></li>
+    <li><b>Release It!</b>, 2e druk, Michael Nygard <span class="tag">D7</span></li>
+    <li><b>Designing Data-Intensive Applications</b>, Martin Kleppmann <span class="tag">D7 · verdieping</span></li>
+    <li><b>Java Concurrency in Practice</b>, Brian Goetz e.a. <span class="tag">D8</span></li>
+    <li><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a> <span class="tag">D9</span></li>
+    <li><a href="https://google.github.io/eng-practices/review/">Google Engineering Practices: Code Review</a> <span class="tag">D10 · kern</span></li>
+    <li><a href="https://conventionalcomments.org/">Conventional Comments</a> <span class="tag">D10</span></li>
+    <li><a href="https://www.infoq.com/news/2025/09/java25-released">Java 25 release-overzicht (InfoQ)</a> <span class="tag">D1</span></li>
+  </ul>
+</section>
+
+<footer>Opgesteld op 6 oktober 2026. Java 25 is de huidige LTS; Spring Boot 4 en Spring Framework 7 zijn uitgebracht in november 2025.</footer>
+</main>
+</div>
+</body>
+</html>
