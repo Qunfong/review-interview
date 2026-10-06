@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Concurrency in singletons · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module zie je in een diff welke state in een Spring-bean door meerdere threads wordt gedeeld, teken je de interleaving die het breekt, en kies je tussen een atomaire operatie, geen state of @Version in de database.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="concurrency-in-singletons">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 4 · D8 Concurrency en performance</p>
+  <h1>Concurrency in singletons</h1>
+  <p class="lede">Een Spring-service bestaat één keer en wordt door honderden threads tegelijk aangeroepen. Elk veld dat na het opstarten nog verandert, is gedeelde state. Zo laat een fraudelimiet van 5 pogingen er 50 door, krijgen twee uitbetalingen dezelfde bankreferentie en verdwijnt een refund uit de database terwijl het geld al terug is bij de klant.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 · Spring Boot 4 (Framework 7, Hibernate 7)</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>In een diff gedeelde mutable state in een singleton-bean <b>herkennen</b> (een veld dat na de constructor verandert, een <code>HashMap</code>, <code>SimpleDateFormat</code> of <code>++</code> op een veld) en met een tijdlijn van twee threads <b>uitleggen</b> hoe check-then-act of read-modify-write misgaat.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span><b>Kiezen en verdedigen</b> tussen geen state, een atomaire operatie (<code>ConcurrentHashMap.merge</code>/<code>compute</code>, atomics) en state in de database (<code>@Version</code>, conditionele update), inclusief wat elke keuze <em>niet</em> oplost: meerdere pods, of een remote call tussen check en act.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span>Het gedrag van <code>synchronized</code>, <code>ReentrantLock</code> en <code>ThreadLocal</code> op virtual threads <b>voorspellen</b> voor de JDK-versie die in productie draait.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>De <b>zwaarte inschatten</b> en een reviewcomment schrijven die de interleaving, het gevolg en een voorstel noemt.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Je vervangt een <code>HashMap</code> door een <code>ConcurrentHashMap</code> en laat <code>map.put(k, map.getOrDefault(k, 0) + 1)</code> staan. Klopt de teller nu?</li>
+      <li>Twee transacties lezen dezelfde <code>Payment</code>, tellen allebei 60 op bij <code>refundedAmount</code> en committen. Wat staat er in de database zonder <code>@Version</code>, en wat met?</li>
+      <li>Op welke JDK draait jullie productie? Maakt dat uit voor een <code>synchronized</code>-blok rond een HTTP-call op een virtual thread?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Spring maakt van een <code>@Service</code> of <code>@Component</code> standaard één instantie (scope <i>singleton</i>). Elke request-thread van Tomcat, of elke virtual thread als <code>spring.threads.virtual.enabled=true</code> aanstaat, roept diezelfde instantie aan. Lokale variabelen en parameters staan op de stack van één thread. Velden staan op de heap en zijn van iedereen. Een service met alleen <code>final</code> velden die naar andere beans, een <code>Clock</code> of configuratie wijzen, is daarom vanzelf thread-safe. Verandert er een veld na de constructor, dan krijg je drie problemen.</p>
+  <ul>
+    <li><b>Atomiciteit.</b> <code>n = map.get(k); map.put(k, n + 1)</code> is lezen, beslissen, schrijven. Een andere thread kan tussen elke twee stappen komen. Dat geldt ook als elke stap op zich thread-safe is: een <code>ConcurrentHashMap</code> maakt <code>get</code> en <code>put</code> veilig, maar niet de combinatie. Nagespeeld met 8 threads en 800.000 ophogingen: met <code>HashMap</code> én met <code>ConcurrentHashMap</code> klopte geen enkele van de 10 runs, met <code>ConcurrentHashMap.merge</code> alle 10.</li>
+    <li><b>Zichtbaarheid.</b> Het Java-geheugenmodel garandeert alleen dat thread B een schrijfactie van thread A ziet als er een <i>happens-before</i>-relatie tussen zit: hetzelfde lock, een <code>volatile</code> veld, een concurrent collection, het starten van de thread. Zonder die relatie mag B een oude waarde zien, of een <code>HashMap</code> die half is bijgewerkt. Acht threads die elk 25.000 <em>verschillende</em> sleutels in één <code>HashMap</code> zetten, verloren in 9 van 10 runs entries, in de slechtste run 66.000 van de 200.000.</li>
+    <li><b>Objecten die zelf niet thread-safe zijn.</b> <code>SimpleDateFormat</code> bewaart tussenresultaten in zijn eigen velden. Gedeeld tussen 8 threads gaven 160.000 format/parse-paren ruim 108.000 verkeerde resultaten en daarnaast <code>NumberFormatException</code>s en <code>ArrayIndexOutOfBoundsException</code>s. <code>DateTimeFormatter</code> is immutable en kan gerust een <code>static final</code> veld zijn.</li>
+  </ul>
+  <p>De bugs hebben twee vormen. Bij <b>check-then-act</b> beslist een thread op basis van een waarde die al verouderd is als hij handelt ("nog geen 5 weigeringen, dus doorlaten"). Bij <b>read-modify-write</b> schrijven twee threads elk hun eigen nieuwe waarde terug, en de laatste wint ("saldo was 1000, ik maak er 940 van"). Het gat tussen lezen en schrijven bepaalt hoe vaak het misgaat. Zonder I/O ertussen gaat het soms mis. Met een HTTP-call van 100 ms ertussen gaat het <em>altijd</em> mis zodra twee requests overlappen.</p>
+  <p>Hetzelfde patroon bestaat één laag dieper. Een JPA-entity wordt niet tussen threads gedeeld (elke transactie heeft een eigen persistence context), maar de <em>rij</em> wel. Hibernate schrijft bij een dirty check de absolute nieuwe waarde terug (<code>set refunded_amount=?</code>), dus twee transacties die dezelfde rij lezen en bijwerken, zijn een read-modify-write op de database. Een lock of <code>ConcurrentHashMap</code> in de JVM helpt daar niet, want de tweede transactie kan net zo goed op een andere pod draaien.</p>
+  <figure>
+    <svg viewBox="0 0 400 572" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee tijdlijnen met twee threads naast elkaar en de gedeelde state in het midden. A: thread 1 en thread 2 lezen allebei 4 weigeringen uit de HashMap, bellen allebei de issuer en schrijven allebei 5 terug; de zesde poging komt door en één weigering is kwijt. B: transactie 1 en 2 lezen allebei payment versie 7 met refunded 0; transactie 1 schrijft met where version = 7 en commit, versie wordt 8; de update van transactie 2 met where version = 7 raakt 0 rijen en krijgt een ObjectOptimisticLockingFailureException.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="arr-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--blocker)"/></marker>
+        <marker id="arr-ok" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--ok)"/></marker>
+      </defs>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--blocker)">A · check-then-act op een veld</text>
+      <text x="70" y="44" font-size="12" font-weight="600" text-anchor="middle" style="fill:currentColor">thread 1</text>
+      <text x="200" y="44" font-size="11" text-anchor="middle" class="mono" style="fill:var(--accent)">declinesPerCard</text>
+      <text x="330" y="44" font-size="12" font-weight="600" text-anchor="middle" style="fill:currentColor">thread 2</text>
+      <rect x="152" y="52" width="96" height="196" rx="4" style="fill:var(--accent-soft)"/>
+      <line x1="4" y1="56" x2="4" y2="244" style="stroke:var(--muted)" marker-end="url(#arr)"/>
+      <text x="10" y="252" font-size="11" style="fill:var(--muted)">tijd</text>
+
+      <rect x="12" y="60" width="118" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="71" y="77" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">get → 4</text>
+      <line x1="152" y1="73" x2="132" y2="73" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="200" y="77" font-size="13" text-anchor="middle" class="mono" style="fill:currentColor">4</text>
+
+      <rect x="270" y="92" width="118" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="329" y="109" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">get → 4</text>
+      <line x1="248" y1="105" x2="268" y2="105" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="200" y="109" font-size="13" text-anchor="middle" class="mono" style="fill:currentColor">4</text>
+
+      <rect x="12" y="124" width="118" height="46" rx="4" style="fill:none;stroke:currentColor;stroke-dasharray:4 3"/>
+      <text x="71" y="143" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">4 &lt; 5: issuer</text>
+      <text x="71" y="159" font-size="11" text-anchor="middle" style="fill:var(--muted)">HTTP, 100 ms</text>
+      <rect x="270" y="132" width="118" height="46" rx="4" style="fill:none;stroke:var(--blocker);stroke-dasharray:4 3"/>
+      <text x="329" y="151" font-size="11" text-anchor="middle" class="mono" style="fill:var(--blocker)">4 &lt; 5: issuer</text>
+      <text x="329" y="167" font-size="11" text-anchor="middle" style="fill:var(--blocker)">moest blokkeren</text>
+
+      <rect x="12" y="184" width="118" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="71" y="201" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">put(5)</text>
+      <line x1="132" y1="197" x2="152" y2="197" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="200" y="201" font-size="13" text-anchor="middle" class="mono" style="fill:currentColor">5</text>
+
+      <rect x="270" y="216" width="118" height="26" rx="4" style="fill:var(--surface);stroke:var(--blocker);stroke-width:2"/>
+      <text x="329" y="233" font-size="11" text-anchor="middle" class="mono" style="fill:var(--blocker)">put(5)</text>
+      <line x1="268" y1="229" x2="248" y2="229" style="stroke:var(--blocker);stroke-width:2" marker-end="url(#arr-bad)"/>
+      <text x="200" y="233" font-size="13" font-weight="600" text-anchor="middle" class="mono" style="fill:var(--blocker)">5, niet 6</text>
+      <text x="200" y="272" font-size="12" text-anchor="middle" style="fill:var(--muted)">Poging 6 komt door en één weigering is kwijt.</text>
+      <text x="200" y="288" font-size="12" text-anchor="middle" style="fill:var(--muted)">Met 50 gelijktijdige pogingen: 50 door, teller op 1.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="330" font-size="15" font-weight="600" style="fill:var(--ok)">B · dezelfde race in de database, met @Version</text>
+      <text x="70" y="358" font-size="12" font-weight="600" text-anchor="middle" style="fill:currentColor">transactie 1</text>
+      <text x="200" y="358" font-size="11" text-anchor="middle" class="mono" style="fill:var(--accent)">payment-rij</text>
+      <text x="330" y="358" font-size="12" font-weight="600" text-anchor="middle" style="fill:currentColor">transactie 2</text>
+      <rect x="152" y="366" width="96" height="164" rx="4" style="fill:var(--accent-soft)"/>
+      <line x1="4" y1="370" x2="4" y2="526" style="stroke:var(--muted)" marker-end="url(#arr)"/>
+
+      <rect x="12" y="374" width="118" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="71" y="391" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">lees v7 · 0</text>
+      <line x1="152" y1="387" x2="132" y2="387" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="200" y="391" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">v7 · 0</text>
+
+      <rect x="270" y="406" width="118" height="26" rx="4" style="fill:var(--surface);stroke:currentColor"/>
+      <text x="329" y="423" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">lees v7 · 0</text>
+      <line x1="248" y1="419" x2="268" y2="419" style="stroke:currentColor" marker-end="url(#arr)"/>
+      <text x="200" y="423" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">v7 · 0</text>
+
+      <rect x="12" y="438" width="118" height="40" rx="4" style="fill:var(--surface);stroke:var(--ok);stroke-width:2"/>
+      <text x="71" y="455" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">set 60 where v=7</text>
+      <text x="71" y="470" font-size="11" text-anchor="middle" style="fill:var(--ok)">1 rij · commit</text>
+      <line x1="132" y1="458" x2="152" y2="458" style="stroke:var(--ok);stroke-width:2" marker-end="url(#arr-ok)"/>
+      <text x="200" y="462" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">v8 · 60</text>
+
+      <rect x="270" y="484" width="118" height="40" rx="4" style="fill:var(--surface);stroke:var(--blocker);stroke-width:2"/>
+      <text x="329" y="501" font-size="11" text-anchor="middle" class="mono" style="fill:currentColor">set 60 where v=7</text>
+      <text x="329" y="516" font-size="11" text-anchor="middle" style="fill:var(--blocker)">0 rijen · exception</text>
+      <line x1="268" y1="504" x2="250" y2="504" style="stroke:var(--blocker);stroke-width:2;stroke-dasharray:3 3" marker-end="url(#arr-bad)"/>
+      <text x="200" y="508" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">v8 · 60</text>
+      <text x="200" y="550" font-size="12" text-anchor="middle" style="fill:var(--muted)">Zonder @Version schrijft transactie 2 ook 60:</text>
+      <text x="200" y="566" font-size="12" text-anchor="middle" style="fill:var(--muted)">120 terugbetaald, 60 geboekt, en niemand merkt het.</text>
+    </svg>
+    <figcaption>A: beide threads lezen 4 voordat een van beide schrijft. De controle klopte op het moment van lezen, maar niet meer op het moment van handelen. B: dezelfde vorm op een databaserij. <code>@Version</code> voegt <code>and version=?</code> toe aan de <code>UPDATE</code>, zodat de tweede schrijver 0 rijen raakt en Hibernate het conflict meldt in plaats van stil te overschrijven.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Geverifieerd:</b> de getallen in deze module komen uit runs op JDK 25.0.4 (8 cores) en, voor pinning, ook JDK 21.0.12. De database-scenario's zijn nagespeeld met Spring Boot 4.1.1 (Framework 7.0.9, Hibernate 7.4) en H2, met twee threads die via een barrier allebei lezen voordat er een schrijft.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>De velocity-regel uit <a href="transacties-en-proxies.html">module 1</a> ("meer dan 5 weigeringen per kaart: blokkeren") moet sneller reageren dan de nachtelijke fraude-batch. Een developer zet een teller in het geheugen van de autorisatieservice, vóór de call naar de issuer. In de unit-test (één thread, zes pogingen achter elkaar) wordt de zesde poging netjes geblokkeerd.</p>
+  <div class="diff">
+    <div class="diff-head">CardVelocityGuard.java</div>
+<pre><span class="a">+@Component</span><span class="a">+public class CardVelocityGuard {</span><span class="a">+</span><span class="a">+    private static final int MAX_DECLINES = 5;</span><span class="a">+</span><span class="a">+    private final IssuerClient issuer;</span><span class="a">+    private final Map&lt;String, Integer&gt; declinesPerCard = new HashMap&lt;&gt;();</span><span class="a">+</span><span class="a">+    public CardVelocityGuard(IssuerClient issuer) {</span><span class="a">+        this.issuer = issuer;</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    public AuthorizationResult authorize(AuthorizeCommand cmd) {</span><span class="a">+        int declines = declinesPerCard.getOrDefault(cmd.cardToken(), 0);</span><span class="a">+        if (declines &gt;= MAX_DECLINES) {</span><span class="a">+            return AuthorizationResult.blocked(cmd.cardToken());</span><span class="a">+        }</span><span class="a">+        var result = issuer.authorize(cmd);                 // HTTP, 100–800 ms</span><span class="a">+        if (result.declined()) {</span><span class="a">+            declinesPerCard.put(cmd.cardToken(), declines + 1);</span><span class="a">+        }</span><span class="a">+        return result;</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    @Scheduled(fixedRate = 10, timeUnit = TimeUnit.MINUTES)</span><span class="a">+    void resetWindow() {</span><span class="a">+        declinesPerCard.clear();</span><span class="a">+    }</span><span class="a">+}</span></pre>
+  </div>
+  <p>Card testing gaat niet netjes achter elkaar. Een bot vuurt 50 pogingen tegelijk af op hetzelfde kaarttoken:</p>
+  <ol>
+    <li>Alle 50 threads lezen <code>declines = 0</code>, want geen enkele is al terug van de issuer.</li>
+    <li>Alle 50 gaan door de controle en bellen de issuer. De guard heeft niets tegengehouden.</li>
+    <li>Alle 50 komen terug met een weigering en schrijven <code>put(token, 0 + 1)</code>. De teller staat op 1.</li>
+    <li>Ondertussen schrijven threads voor andere kaarten in dezelfde <code>HashMap</code>, en <code>resetWindow()</code> draait <code>clear()</code> op een scheduler-thread. Er is geen enkele happens-before-relatie, dus entries kunnen verdwijnen.</li>
+  </ol>
+  <p>Nagespeeld (50 virtual threads, issuer van 100 ms die altijd weigert, 3 runs): <b>50 issuer-calls, teller daarna op 1</b>. In elke run.</p>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>Lijkt een fix · <code>ConcurrentHashMap</code> en <code>merge</code> ná de call</h4>
+      <p>Tellen gaat nu goed: na 50 pogingen staat er 50. Maar de controle zit nog steeds vóór een call van 100 ms, dus alle 50 pogingen gaan door naar de issuer (nagespeeld). Een atomaire operatie maakt één stap atomair, niet je algoritme. Dit is de fix die de meeste reviews goedkeuren.</p>
+    </div>
+    <div>
+      <h4>A · Claim vóór de call, atomair</h4>
+      <p>Tel de poging met <code>merge</code> <em>voordat</em> je de issuer belt, en beslis op de waarde die <code>merge</code> teruggeeft. Lezen, ophogen en terugschrijven zijn dan één atomaire stap per sleutel. Nagespeeld: 5 issuer-calls, 45 keer <code>BLOCKED</code>. <b>Prijs:</b> je telt nu pogingen in plaats van weigeringen. Voor card testing is dat meestal juist wat je wilt. Wil het fraudeteam alleen weigeringen tellen, verlaag dan na een goedkeuring met <code>merge(token, -1, Integer::sum)</code>, ook atomair. Het venster blijft grof: 5 pogingen om 9:59 en 5 om 10:00 komen er allemaal door.</p>
+    </div>
+    <div>
+      <h4>B · State buiten de JVM</h4>
+      <p>Draait de service op 3 pods, dan heeft elke pod een eigen teller: de limiet is in werkelijkheid 15, en na elke deploy weer 0. Hoort de limiet echt te gelden, dan moet de teller centraal staan: een atomaire <code>INCR</code> met TTL in Redis, of een rij met een conditionele update in de database. <b>Prijs:</b> een netwerkhop op het kritieke pad van elke autorisatie, en een keuze voor als die opslag weg is: fail-open (fraude glipt erdoor) of fail-closed (niemand kan betalen).</p>
+    </div>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix A · CardVelocityGuard.java</div>
+<pre><span class="d">-    private static final int MAX_DECLINES = 5;</span><span class="a">+    private static final int MAX_ATTEMPTS = 5;</span><span></span><span class="d">-    private final Map&lt;String, Integer&gt; declinesPerCard = new HashMap&lt;&gt;();</span><span class="a">+    private final ConcurrentHashMap&lt;String, Integer&gt; attemptsPerCard = new ConcurrentHashMap&lt;&gt;();</span><span></span><span>    public AuthorizationResult authorize(AuthorizeCommand cmd) {</span><span class="d">-        int declines = declinesPerCard.getOrDefault(cmd.cardToken(), 0);</span><span class="d">-        if (declines &gt;= MAX_DECLINES) {</span><span class="a">+        int attempt = attemptsPerCard.merge(cmd.cardToken(), 1, Integer::sum);   // atomair: claim eerst</span><span class="a">+        if (attempt &gt; MAX_ATTEMPTS) {</span><span>            return AuthorizationResult.blocked(cmd.cardToken());</span><span>        }</span><span class="d">-        var result = issuer.authorize(cmd);</span><span class="d">-        if (result.declined()) {</span><span class="d">-            declinesPerCard.put(cmd.cardToken(), declines + 1);</span><span class="d">-        }</span><span class="d">-        return result;</span><span class="a">+        return issuer.authorize(cmd);</span><span>    }</span></pre>
+  </div>
+  <p>Liever niet: <code>synchronized</code> op <code>authorize</code>. Dat is correct binnen één JVM, maar zet alle autorisaties van alle kaarten achter één lock, inclusief de issuer-call. Met een issuer van 200 ms haal je dan maximaal 5 autorisaties per seconde per pod. Lock hooguit het korte stuk zonder I/O, en dan ben je terug bij A.</p>
+
+  <h3>Als de state in de database staat: <code>@Version</code></h3>
+  <p>Modules <a href="transacties-en-proxies.html">1</a> en <a href="dual-write-en-outbox.html">3</a> lieten een vraag open: twee gelijktijdige gedeeltelijke refunds op dezelfde <code>Payment</code>. Beide lezen <code>refundedAmount = 0</code>, beide valideren "60 past in 100", beide tellen 60 op. Nagespeeld zonder <code>@Version</code>: beide calls slagen, de PSP stort 120 terug, en in de database staat 60. Geen exception, geen log.</p>
+  <div class="diff">
+    <div class="diff-head">Payment.java</div>
+<pre><span>@Entity</span><span>public class Payment {</span><span>    @Id private UUID id;</span><span class="a">+   @Version private long version;</span><span>    private BigDecimal amount;</span><span>    private BigDecimal refundedAmount;</span><span>    …</span></pre>
+  </div>
+  <p>Met de versiekolom schrijft Hibernate <code>update payment set …, version=? where id=? and version=?</code>. Raakt die update 0 rijen, dan is er tussen lezen en schrijven iemand anders geweest. Spring vertaalt dat naar <code>ObjectOptimisticLockingFailureException</code> (een <code>OptimisticLockingFailureException</code>). Nagespeeld: de eerste refund commit, de tweede krijgt <i>Unexpected row count (expected row count 1 but was 0)</i>, en <code>refundedAmount</code> is 60 met versie 1. Drie dingen om in een review op te letten:</p>
+  <ul>
+    <li><b>De check gebeurt bij de flush, meestal bij de commit.</b> Dat is ná je methode, in de transactie-interceptor. Een <code>try/catch</code> rond <code>save()</code> binnen de <code>@Transactional</code>-methode vangt niets (nagespeeld, zie vraag 4).</li>
+    <li><b>Wat doe je met het conflict?</b> Geef de client een <code>409 Conflict</code> met een <code>ProblemDetail</code>, of probeer de <em>hele</em> transactie opnieuw, zodat er vers gelezen en opnieuw gevalideerd wordt. Spring Framework 7 heeft daarvoor <code>@Retryable</code> in de core (met <code>@EnableResilientMethods</code>). Nagespeeld met <code>@Retryable(includes = OptimisticLockingFailureException.class)</code> op een aparte bean rond de transactionele methode: 2× 30 slaagt allebei (3 pogingen totaal), en bij 2× 60 wordt de tweede na de retry correct afgewezen met "resterend 40".</li>
+    <li><b>Retry nooit over een remote side effect heen.</b> Staat de PSP-call binnen de transactie (de fout uit module 1), dan voert een retry hem nog een keer uit. Eerst de transactiegrens goed, dan pas retry.</li>
+  </ul>
+  <p>Twee alternatieven. Een <b>conditionele update</b> (<code>update Payment p set p.refundedAmount = p.refundedAmount + :amt where p.id = :id and p.amount - p.refundedAmount &gt;= :amt</code>, en dan het aantal geraakte rijen controleren) doet check en act in één statement. Geen retry nodig, maar de regel staat nu in een query in plaats van in de entity, en de entities in je persistence context zijn daarna verouderd. Op H2 nagespeeld: de ene update raakte 1 rij, de andere 0. Controleer het gedrag van je eigen database bij gelijktijdige updates. Een <b>pessimistisch lock</b> (<code>@Lock(PESSIMISTIC_WRITE)</code>, <code>select … for update</code>) laat de tweede wachten in plaats van falen. Dat past bij een rij waar bijna altijd conflicten op zijn, maar je betaalt met wachtende connecties en de kans op deadlocks.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>State die bij het opstarten wordt gezet en daarna alleen gelezen.</b> Een <code>final</code> veld dat in de constructor een immutable waarde krijgt (<code>Map.copyOf(...)</code>, een record met <code>List.copyOf</code>) is door de semantiek van <code>final</code>-velden veilig zichtbaar voor elke thread. Moet het periodiek ververst worden, vervang dan de hele snapshot via een <code>volatile</code> veld (<code>this.rates = Map.copyOf(fresh)</code>). Lezers zien dan de oude of de nieuwe map, nooit een halve.</li>
+    <li><b>Een goedaardige race op een concurrent structuur.</b> Twee threads die tegelijk dezelfde valutalijst ophalen en allebei <code>putIfAbsent</code> doen, verspillen één call. Het resultaat is hetzelfde. Op een <code>ConcurrentHashMap</code> prima, op een <code>HashMap</code> niet, want die kan zelf kapotgaan.</li>
+    <li><b>Objecten die per aanroep worden gemaakt.</b> Een <code>new PriceCalculation(order)</code> in de methode, een builder, een <code>StringBuilder</code>: niet gedeeld, dus geen probleem, ook als ze mutable zijn. Hetzelfde geldt voor beans met scope <code>request</code> of <code>prototype</code>.</li>
+    <li><b>Metrics en tellers die alleen informatief zijn</b>, via <code>AtomicLong</code>, <code>LongAdder</code> of een Micrometer <code>Counter</code>.</li>
+    <li><b><code>synchronized</code> rond een kort stuk zonder I/O</b>, ook op virtual threads. Sinds JDK 24 (JEP 491) pint <code>synchronized</code> de carrier-thread niet meer (zie vraag 3).</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als gedeelde state een limiet, saldo, idempotency-check of referentie bewaakt, of als een <code>HashMap</code> of <code>SimpleDateFormat</code> op een request-pad gelijktijdig wordt beschreven · <span class="sev major">major</span> bij een ongebonden cache (OOM na weken), een cache die nooit ververst, <code>synchronized</code> rond I/O, of per-pod state waar het team een globale limiet verwacht · <span class="sev minor">minor</span> bij een goedaardige race die alleen dubbel werk kost, of een <code>ThreadLocal</code>-cache op virtual threads · laat gaan bij immutable velden en state die alleen bij het opstarten wordt gezet.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Dit is niet thread-safe. Gebruik een <code>ConcurrentHashMap</code>.</p><p style="color:var(--muted);font-size:14px">Geen interleaving, geen gevolg, en het voorstel lost het niet op: met een <code>ConcurrentHashMap</code> en dezelfde get/put gaan nog steeds alle 50 pogingen door. De auteur past het aan, en de bug blijft.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>CardVelocityGuard</code> is een singleton, dus <code>declinesPerCard</code> wordt door alle request-threads gedeeld. Tussen de check (<code>getOrDefault</code>) en de <code>put</code> zit de issuer-call. 50 gelijktijdige pogingen lezen allemaal 0 en komen allemaal door. Lokaal nagespeeld: 50 issuer-calls, teller daarna op 1.</p><p><b>Gevolg:</b> juist bij card testing, waar pogingen parallel komen, blokkeert de guard niets. Daarnaast kan de <code>HashMap</code> entries verliezen door gelijktijdige writes en de <code>clear()</code> van de scheduler.</p><p><b>Voorstel:</b> <code>ConcurrentHashMap.merge(token, 1, Integer::sum)</code> vóór de call en beslissen op de teruggegeven waarde. <b>Vraag:</b> we draaien op 3 pods, dus de limiet is per pod. Is 15 acceptabel, of moet de teller naar Redis?</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: de service draait op 3 pods. Merchants vragen uitbetalingen aan via het dashboard en via de API, soms tegelijk. <code>Payout.reference</code> heeft een unique constraint en is de referentie die de bank op het afschrift zet. <code>FxClient.fetchRate</code> is een HTTP-call (50–300 ms).</p>
+  <div class="diff">
+    <div class="diff-head">PR #552 · Uitbetalingen in de settlementvaluta van de merchant</div>
+<pre><span><span class="ln">1</span>@Service</span><span><span class="ln">2</span>public class PayoutService {</span><span><span class="ln">3</span></span><span><span class="ln">4</span>    private static final DateTimeFormatter BATCH_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");</span><span><span class="ln">5</span></span><span><span class="ln">6</span>    private final MerchantRepository merchants;</span><span><span class="ln">7</span>    private final PayoutRepository payouts;</span><span><span class="ln">8</span>    private final FxClient fx;</span><span><span class="ln">9</span>    private final Clock clock;</span><span><span class="ln">10</span></span><span><span class="ln">11</span>    private final Map&lt;String, BigDecimal&gt; fxRates = new HashMap&lt;&gt;();</span><span><span class="ln">12</span>    private int sequence;</span><span><span class="ln">13</span></span><span><span class="ln">14</span>    public PayoutService(MerchantRepository merchants, PayoutRepository payouts,</span><span><span class="ln">15</span>                         FxClient fx, Clock clock) {</span><span><span class="ln">16</span>        this.merchants = merchants;</span><span><span class="ln">17</span>        this.payouts = payouts;</span><span><span class="ln">18</span>        this.fx = fx;</span><span><span class="ln">19</span>        this.clock = clock;</span><span><span class="ln">20</span>    }</span><span><span class="ln">21</span></span><span><span class="ln">22</span>    @Transactional</span><span><span class="ln">23</span>    public PayoutResponse requestPayout(UUID merchantId, Money amount) {</span><span><span class="ln">24</span>        var merchant = merchants.findById(merchantId)</span><span><span class="ln">25</span>                .orElseThrow(() -&gt; new MerchantNotFoundException(merchantId));</span><span><span class="ln">26</span>        if (merchant.getAvailableBalance().compareTo(amount.value()) &lt; 0) {</span><span><span class="ln">27</span>            throw new InsufficientBalanceException(merchantId, amount);</span><span><span class="ln">28</span>        }</span><span><span class="ln">29</span>        var rate = rateFor(amount.currency(), merchant.getSettlementCurrency());</span><span><span class="ln">30</span>        var settled = amount.value().multiply(rate).setScale(2, RoundingMode.HALF_EVEN);</span><span><span class="ln">31</span></span><span><span class="ln">32</span>        merchant.setAvailableBalance(merchant.getAvailableBalance().subtract(amount.value()));</span><span><span class="ln">33</span>        var payout = payouts.save(new Payout(merchantId, settled,</span><span><span class="ln">34</span>                merchant.getSettlementCurrency(), nextReference()));</span><span><span class="ln">35</span>        return PayoutResponse.from(payout);</span><span><span class="ln">36</span>    }</span><span><span class="ln">37</span></span><span><span class="ln">38</span>    private BigDecimal rateFor(String from, String to) {</span><span><span class="ln">39</span>        if (from.equals(to)) {</span><span><span class="ln">40</span>            return BigDecimal.ONE;</span><span><span class="ln">41</span>        }</span><span><span class="ln">42</span>        var pair = from + "/" + to;</span><span><span class="ln">43</span>        if (!fxRates.containsKey(pair)) {</span><span><span class="ln">44</span>            fxRates.put(pair, fx.fetchRate(from, to));</span><span><span class="ln">45</span>        }</span><span><span class="ln">46</span>        return fxRates.get(pair);</span><span><span class="ln">47</span>    }</span><span><span class="ln">48</span></span><span><span class="ln">49</span>    private String nextReference() {</span><span><span class="ln">50</span>        var date = LocalDate.now(clock).format(BATCH_DATE);</span><span><span class="ln">51</span>        return "PO-" + date + "-" + (++sequence);</span><span><span class="ln">52</span>    }</span><span><span class="ln">53</span>}</span><span><span class="ln">54</span></span><span><span class="ln">55</span>// Merchant.java (gewijzigd: availableBalance toegevoegd)</span><span><span class="ln">56</span>@Entity</span><span><span class="ln">57</span>public class Merchant {</span><span><span class="ln">58</span>    @Id private UUID id;</span><span><span class="ln">59</span>    private String name;</span><span><span class="ln">60</span>    private String settlementCurrency;</span><span><span class="ln">61</span>    private BigDecimal availableBalance;</span><span><span class="ln">62</span></span><span><span class="ln">63</span>    public BigDecimal getAvailableBalance() { return availableBalance; }</span><span><span class="ln">64</span>    public void setAvailableBalance(BigDecimal b) { this.availableBalance = b; }</span><span><span class="ln">65</span>    public String getSettlementCurrency() { return settlementCurrency; }</span><span><span class="ln">66</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regels 26–32 en 56–61</b> <span class="sev blocker">blocker</span> Lost update op het saldo. <code>Merchant</code> heeft geen <code>@Version</code>. Twee gelijktijdige uitbetalingen van 800 bij een saldo van 1000 lezen allebei 1000, komen allebei door de check op regel 26 en schrijven allebei 200 terug. Er gaat 1600 de deur uit, het saldo staat op 200, en niets faalt. Bij een cache-miss maakt de HTTP-call op regel 29 het venster tussen lezen en schrijven honderden milliseconden breed. Een lock in de JVM helpt niet, want de tweede aanvraag kan op een andere pod draaien. Voorstel: <code>@Version</code> op <code>Merchant</code>, met een <code>409</code> of een retry van de hele transactie, of een conditionele update (<code>… set availableBalance = availableBalance - :amt where id = :id and availableBalance &gt;= :amt</code>) waarbij je het aantal geraakte rijen controleert.</p>
+      <p><b>Regels 12 en 51</b> <span class="sev blocker">blocker</span> <code>++sequence</code> is lezen, ophogen, schrijven op een gedeeld veld. Gelijktijdige uitbetalingen krijgen dezelfde referentie (nagespeeld met 8 threads: in elke run duplicaten, tot ruim 99.000 van 400.000). Erger: elke pod begint na een start bij 1, dus op dezelfde dag geven drie pods allemaal <code>PO-20261006-1</code>, <code>-2</code>, … uit. Met de unique constraint faalt de tweede uitbetaling met een constraint-violation (500, rollback). Een <code>AtomicInteger</code> lost alleen het eerste deel op. Voorstel: een databasesequence, of een referentie op basis van het payout-ID.</p>
+      <p><b>Regels 11 en 43–46</b> <span class="sev major">major</span> Een <code>HashMap</code> als cache in een singleton. Gelijktijdige <code>put</code>s kunnen entries kwijtraken, en <code>containsKey</code> + <code>put</code> is check-then-act: twee threads halen dezelfde koers op. Dat dubbele ophalen is op zich onschuldig. Het grotere probleem: de koers verloopt nooit. Een koers van de eerste uitbetaling na de deploy wordt dagen later nog gebruikt, en dat is geld. Voorstel: haal de koers per uitbetaling op, of gebruik een cache met <code>expireAfterWrite</code> die past bij wat finance acceptabel vindt. Liever geen <code>computeIfAbsent</code> met de HTTP-call erin (zie vraag 2).</p>
+      <p><b>Regels 22 en 29 (44)</b> <span class="sev major">major</span> <i>Uit <a href="transacties-en-proxies.html">module 1</a>.</i> Een remote call binnen de transactie. Bij elke cache-miss houdt de uitbetaling een databaseconnectie 50–300 ms vast terwijl er niets met de database gebeurt, en het verbreedt het race-venster van de eerste bevinding. Voorstel: bepaal de koers vóór de transactie begint, of los dit op met een cache die buiten de request om ververst.</p>
+      <p><b>Regels 4 en 50</b> <span class="sev ok">geen probleem</span> De afleider: een gedeelde formatter in een <code>static final</code> veld. Dit lijkt op de <code>SimpleDateFormat</code>-bug, maar <code>DateTimeFormatter</code> is immutable en thread-safe, en <code>LocalDate.now(clock)</code> is zelfs testbaar. Een comment hier laat zien dat je de regel kent, maar het type niet hebt gelezen.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort. Lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · voorspellen</span></div>
+      <p class="situ">Na een reviewcomment past de auteur alleen het type van het veld aan:</p>
+<pre class="snip">private final Map&lt;String, Integer&gt; attempts = new ConcurrentHashMap&lt;&gt;();
+
+void record(String cardToken) {
+    attempts.put(cardToken, attempts.getOrDefault(cardToken, 0) + 1);
+}</pre>
+      <p class="ask">Telt <code>record</code> nu correct als 8 threads hem tegelijk aanroepen?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee. De map raakt niet meer beschadigd, maar ophogingen gaan nog steeds verloren.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>getOrDefault</code> en <code>put</code> zijn elk atomair, maar het geheel niet. Twee threads lezen 3 en schrijven allebei 4.</li>
+          <li>Nagespeeld met 8 threads en 800.000 ophogingen: alle 10 runs fout (655.926 tot 784.440). Met <code>merge(cardToken, 1, Integer::sum)</code> waren alle 10 runs exact 800.000.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> <code>ConcurrentHashMap</code> voorkomt corruptie, maar <code>getOrDefault</code> + <code>put</code> is nog steeds lezen-dan-schrijven en verliest updates onder gelijktijdigheid. <code>attempts.merge(cardToken, 1, Integer::sum)</code> doet het in één atomaire stap.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · kiezen en verdedigen</span></div>
+      <p class="situ">Iemand stelt voor de FX-cache uit de oefening zo te repareren:</p>
+<pre class="snip">private final ConcurrentHashMap&lt;String, BigDecimal&gt; fxRates = new ConcurrentHashMap&lt;&gt;();
+
+BigDecimal rateFor(String from, String to) {
+    return fxRates.computeIfAbsent(from + "/" + to,
+            pair -&gt; fx.fetchRate(from, to));   // HTTP, 50–300 ms
+}</pre>
+      <p class="ask">Is dit correct, en wat kost het?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Het is atomair en haalt elke koers maar één keer op, maar tijdens de HTTP-call kunnen updates op andere sleutels blokkeren. En de koers verloopt nog steeds nooit.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>De Javadoc van <code>computeIfAbsent</code> waarschuwt dat updates van andere threads kunnen blokkeren zolang de functie loopt, en dat de functie daarom "short and simple" moet zijn.</li>
+          <li>Het lock zit op de bucket, niet op de sleutel. Nagespeeld: terwijl <code>computeIfAbsent("Aa", …)</code> 1 seconde liep, wachtte <code>computeIfAbsent("BB", …)</code> 1 seconde. Beide strings hebben hashCode 2112. Een <code>get</code> en een andere sleutel wachtten niet.</li>
+          <li>Een trage of hangende FX-provider houdt zo ook schrijvers op andere valutaparen vast.</li>
+        </ul>
+        <p class="a-lbl">Beter</p>
+        <ul>
+          <li>Accepteer het dubbele ophalen: <code>get</code>, bij een miss ophalen buiten de map, dan <code>putIfAbsent</code>. Of zet een <code>CompletableFuture</code> in de map, zodat <code>computeIfAbsent</code> alleen de future aanmaakt en de call erbuiten loopt.</li>
+          <li>Een cachebibliotheek met verloop lost ook het ontbrekende verversen op.</li>
+        </ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">Om dubbele uitbetalingen per merchant te voorkomen, lockt een service per merchant rond de PSP-call. De app draait met <code>spring.threads.virtual.enabled=true</code> op 8 cores.</p>
+<pre class="snip">var lock = locks.computeIfAbsent(merchantId, id -&gt; new Object());
+synchronized (lock) {
+    psp.payout(merchantId, amount);     // HTTP, 200 ms
+}</pre>
+      <p class="ask">Wat merk je hiervan in productie op JDK 21, en wat op JDK 25?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Op JDK 21 pint elke wachtende PSP-call een carrier-thread, dus er lopen maximaal 8 calls tegelijk voor álle merchants. Op JDK 25 niet: dan krijg je alleen de bedoelde serialisatie per merchant.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Tot en met JDK 23 kan een virtual thread die blokkeert binnen <code>synchronized</code> niet van zijn carrier af. Er zijn standaard evenveel carriers als cores.</li>
+          <li>JEP 491 (JDK 24) heeft dat opgelost. Nagespeeld met 64 virtual threads die elk een eigen lock 200 ms vasthouden: 1680 ms op JDK 21.0.12, 207 ms op JDK 25.0.4. Met <code>ReentrantLock</code> was het op beide ~210 ms.</li>
+          <li>Pinning bestaat nog steeds bij blokkeren in een class initializer en in native code. Een <code>static { }</code>-blok dat 200 ms blokkeert, pinde ook op JDK 25 (JFR-event <code>jdk.VirtualThreadPinned</code>).</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul>
+          <li>Het lock werkt alleen binnen één pod. Op 3 pods kan dezelfde merchant nog steeds twee keer tegelijk uitbetalen. De echte bescherming is een idempotency key bij de PSP en een statusovergang in de database.</li>
+          <li><code>locks</code> groeit met elke merchant en wordt nooit opgeruimd.</li>
+        </ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ"><code>Payment</code> heeft nu een <code>@Version</code>. De auteur wil een conflict zelf afhandelen:</p>
+<pre class="snip">@Transactional
+public void refund(UUID id, BigDecimal amount) {
+    var payment = payments.findById(id).orElseThrow();
+    payment.addRefunded(amount);
+    try {
+        payments.save(payment);
+    } catch (OptimisticLockingFailureException e) {
+        log.warn("Conflict op payment {}, opnieuw", id);
+        refund(id, amount);
+    }
+}</pre>
+      <p class="ask">Wordt het conflict hier ooit gevangen?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee. De versiecheck gebeurt bij de flush tijdens de commit, nadat <code>refund</code> al is teruggekeerd. De exception gaat dus naar de aanroeper.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li><code>save()</code> op een entity die al in de persistence context zit, voert geen <code>UPDATE</code> uit. Die volgt pas bij de flush, en die doet de transactie-interceptor bij de commit. Nagespeeld: 0 keer gevangen, de tweede aanroeper kreeg <code>ObjectOptimisticLockingFailureException</code>.</li>
+          <li>Zelfs als je eerder flusht, helpt de recursieve aanroep niet. Hij loopt via <code>this</code> (geen nieuwe transactie, zie <a href="transacties-en-proxies.html">module 1</a>), en <code>findById</code> geeft dezelfde verouderde entity uit de persistence context terug.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> deze <code>catch</code> wordt nooit geraakt. De <code>@Version</code>-check zit in de <code>UPDATE</code> bij de commit, na deze methode. Een retry moet de hele transactie opnieuw doen, met vers lezen. Bijvoorbeeld <code>@Retryable(includes = OptimisticLockingFailureException.class)</code> op de aanroepende bean, of een <code>409</code> naar de client.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">Een gedeeld <code>SimpleDateFormat</code>-veld in een exportservice is gerepareerd. De service draait op virtual threads.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · in de PR</p>
+<pre class="snip">private static final ThreadLocal&lt;SimpleDateFormat&gt; FMT =
+    ThreadLocal.withInitial(
+        () -&gt; new SimpleDateFormat("yyyyMMdd"));</pre></div>
+        <div><p class="snip-label">B · alternatief</p>
+<pre class="snip">private static final DateTimeFormatter FMT =
+    DateTimeFormatter.ofPattern("yyyyMMdd");</pre></div>
+      </div>
+      <p class="ask">Welke zwaarte geef je aan A, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev minor">minor</span>: A is correct, maar de <code>ThreadLocal</code> levert op virtual threads niets op.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>Geen thread deelt nog een instantie, dus de bug is weg. Geen blocker.</li>
+          <li>Virtual threads worden niet hergebruikt: elke taak krijgt een nieuwe thread en dus een nieuwe formatter. Nagespeeld: 10.000 taken op virtual threads maakten 10.000 instanties, op een pool van 8 platform-threads 8.</li>
+          <li><code>DateTimeFormatter</code> is immutable en thread-safe. Eén <code>static final</code> instantie volstaat, zonder <code>ThreadLocal</code>.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>suggestion:</b> de <code>ThreadLocal</code> lost het deelprobleem op, maar met virtual threads krijgt elke request toch een eigen <code>SimpleDateFormat</code>, dus er wordt niets hergebruikt. Een <code>static final DateTimeFormatter</code> is thread-safe en eenvoudiger. Werk je met <code>java.util.Date</code>, zet die dan om met <code>toInstant()</code>.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Java Language Specification SE 25, <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-17.html">hoofdstuk 17 Threads and Locks</a>: §17.4.5 <i>Happens-before Order</i> (de definitie van een data race) en §17.5 <i>final Field Semantics</i> (waarom een immutable <code>final</code> veld veilig is).</li>
+    <li><a href="https://openjdk.org/jeps/491">JEP 491: Synchronize Virtual Threads without Pinning</a> (JDK 24): wat er veranderde, welke pinning-gevallen er nog zijn (class initializers, native code), en waarom <code>jdk.tracePinnedThreads</code> is verdwenen en het JFR-event <code>jdk.VirtualThreadPinned</code> is gebleven.</li>
+    <li>JDK 25 API, <a href="https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ConcurrentHashMap.html">ConcurrentHashMap</a>: de Javadoc van <code>compute</code>, <code>computeIfAbsent</code> en <code>merge</code> over atomiciteit en blokkeren.</li>
+    <li>Hibernate ORM 7.4 User Guide, <a href="https://docs.hibernate.org/orm/7.4/userguide/html_single/Hibernate_User_Guide.html#locking-optimistic">§11.1 Optimistic</a>: het mappen van <code>@Version</code>. Voor retries: Spring Framework Reference, <a href="https://docs.spring.io/spring-framework/reference/core/resilience.html">Resilience Features</a> (<code>@Retryable</code>, <code>@EnableResilientMethods</code>).</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

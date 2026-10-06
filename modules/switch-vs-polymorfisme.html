@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Switch vs polymorfisme · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module zie je in een diff waar een nieuwe betaalmethode of een nieuwe operatie moet landen, voorspel je wat de compiler bij sealed types, guards en default wel en niet controleert, en kies en verdedig je tussen if-keten, enum-switch, Strategy, polymorfisme en sealed pattern matching.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;min-width:0}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+.fixes .snip{margin-top:8px}
+
+.tbl-wrap{margin-top:16px;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.tbl{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th,.tbl td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl th{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="switch-vs-polymorfisme">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 6b · D1 · D3</p>
+  <h1>Switch vs polymorfisme</h1>
+  <p class="lede">Een nieuwe betaalmethode komt erbij, de PR raakt twee bestanden, alle tests zijn groen. Het derde bestand, dat niet in de diff staat, eindigt met <code>return BigDecimal.ZERO</code>, en drie weken lang rekent het platform geen cent fee op elke Wero-betaling. Waar een nieuwe variant moet landen, en of de compiler je dan helpt, is een ontwerpkeuze. In de review moet je die keuze kunnen zien en wegen.</p>
+  <div class="meta"><span><b>Tijd</b> 45 min</span><span><b>Stack</b> Java 25 (alle taalgedrag gedraaid op JDK 25.0.4)</span><span><b>Spoor</b> tussen ontwerp (D3) en spoor F</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>In een diff <b>herkennen</b> waar kennis over "welke soorten er zijn" verspreid zit: dezelfde <code>if</code>/<code>switch</code> op een type-string, enum of <code>instanceof</code> op meerdere plekken, en een <code>default</code> of laatste <code>else</code> die een nieuw geval stil opvangt.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span><b>Voorspellen</b> wat compiler en runtime doen bij een <code>switch</code> over een sealed type of enum: exhaustiveness, het effect van <code>default</code>, guards (<code>when</code>) en hun volgorde, dominantie, <code>null</code>, en een nieuw subtype zonder hercompilatie.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span>Tussen <code>if</code>/<code>instanceof</code>-keten, enum-switch, Strategy + factory, polymorfe methode en sealed interface + records + pattern-matching-switch <b>kiezen en verdedigen</b>, op basis van wat er groeit: nieuwe types of nieuwe operaties.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>Speculatieve generaliteit <b>benoemen</b> (een Strategy-hiërarchie voor twee gevallen die nooit groeien) en de <b>zwaarte inschatten</b> van een uitbreidbaarheidsbevinding, met een comment die over uitbreidingsrichting gaat in plaats van smaak.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Je voegt een record toe aan een sealed interface. Welke <code>switch</code>-en in de codebase geven een compileerfout, en welke niet?</li>
+      <li>Wat doet een <code>default</code>-tak in een <code>switch</code> die al alle permitted subtypes afdekt: vandaag, en op de dag dat er een subtype bijkomt?</li>
+      <li>Een module met een exhaustive <code>switch</code> wordt níet opnieuw gecompileerd nadat er een subtype is bijgekomen. Wat gebeurt er als dat nieuwe type langskomt?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Zet je betaalmethodes als rijen en de operaties erop als kolommen: fee berekenen, refundroute kiezen, settlementvertraging, risicoscore. Elke cel is een stukje logica. Er zijn twee manieren om die tabel in code te snijden, en elke manier maakt één richting van uitbreiden goedkoop en de andere duur. Dat heet het <i>expression problem</i>, en het is de echte vraag achter elke "maak hier Strategy van"-comment.</p>
+  <ul>
+    <li><b>Polymorfisme snijdt per rij.</b> Elk type is een klasse met een methode per operatie. Een nieuw type is één nieuwe klasse, en de compiler eist dat elke abstracte methode wordt geïmplementeerd. Een nieuwe operatie betekent: elke klasse openen. En het type moet alles weten wat die operaties nodig hebben: tarieven, refund-rails, risicoregels.</li>
+    <li><b>Een <code>switch</code> over een sealed type snijdt per kolom.</b> Elke operatie is één functie, in de module die haar bezit. Een nieuwe operatie is één nieuwe functie. Een nieuw type betekent: elke <code>switch</code> moet mee. Dat klinkt duur, maar de compiler wijst ze allemaal aan, mits je hem dat laat doen.</li>
+  </ul>
+  <p>Dat laatste is het mechanisme waar het in een review om draait. Bij <code>sealed interface PaymentMethod permits Card, Ideal, SepaDebit</code> kent <code>javac</code> de volledige lijst subtypes. Een <code>switch</code>-expressie, of een switch-statement met patterns, moet <b>exhaustive</b> zijn: elk permitted subtype moet gedekt zijn door een case zonder guard. Het controleren gebeurt tijdens het compileren. Tijdens runtime test de gecompileerde code de cases <b>van boven naar beneden</b> (via <code>invokedynamic</code> naar <code>SwitchBootstraps.typeSwitch</code>; zichtbaar met <code>javap -c</code>), en de eerste case waarvan pattern én guard passen wint. Voor het geval dat er na het compileren toch een onbekend type langskomt, zet de compiler zelf een verborgen tak neer die <code>MatchException</code> gooit.</p>
+  <p>Een <code>default</code>-tak vervangt die verborgen tak. Dat is het hele verschil: met <code>default</code> is de switch altijd exhaustive, ook na het toevoegen van een subtype, en de compiler heeft niets meer te melden.</p>
+  <figure>
+    <svg viewBox="0 0 400 540" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee rasters van betaalmethodes (rijen Card, iDEAL, SEPA DD en nieuw Wero) tegen operaties (kolommen fee, refund, settle en nieuw risk). A, polymorfisme: een nieuw type is één nieuwe klasse waarvan de compiler alle methoden eist; een nieuwe operatie vraagt dat elke klasse wordt geopend. B, sealed plus switch: een nieuwe operatie is één nieuwe functie; een nieuw type vraagt een case in elke switch, die de compiler aanwijst, behalve in de switch met een default, waar Wero stil doorheen valt.</title>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--accent)">A · polymorfisme: elke rij is een klasse</text>
+      <text x="0" y="36" font-size="12" style="fill:var(--muted)">operaties zijn methoden op het type zelf</text>
+      <text x="121" y="62" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">fee</text>
+      <text x="199" y="62" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">refund</text>
+      <text x="277" y="62" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">settle</text>
+      <text x="355" y="62" font-size="12" text-anchor="middle" class="mono" style="fill:var(--blocker)">+ risk</text>
+
+      <text x="0" y="88" font-size="12" class="mono" style="fill:currentColor">Card</text>
+      <text x="0" y="118" font-size="12" class="mono" style="fill:currentColor">iDEAL</text>
+      <text x="0" y="148" font-size="12" class="mono" style="fill:currentColor">SEPA DD</text>
+      <text x="0" y="178" font-size="12" class="mono" style="fill:var(--ok)">+ Wero</text>
+
+      <g style="fill:var(--surface);stroke:var(--muted)">
+        <rect x="85" y="72" width="72" height="24" rx="3"/><rect x="163" y="72" width="72" height="24" rx="3"/><rect x="241" y="72" width="72" height="24" rx="3"/>
+        <rect x="85" y="102" width="72" height="24" rx="3"/><rect x="163" y="102" width="72" height="24" rx="3"/><rect x="241" y="102" width="72" height="24" rx="3"/>
+        <rect x="85" y="132" width="72" height="24" rx="3"/><rect x="163" y="132" width="72" height="24" rx="3"/><rect x="241" y="132" width="72" height="24" rx="3"/>
+      </g>
+      <g style="fill:var(--surface);stroke:var(--blocker);stroke-width:2">
+        <rect x="319" y="72" width="72" height="24" rx="3"/><rect x="319" y="102" width="72" height="24" rx="3"/><rect x="319" y="132" width="72" height="24" rx="3"/>
+      </g>
+      <text x="355" y="88" font-size="11" text-anchor="middle" style="fill:var(--blocker)">openen</text>
+      <text x="355" y="118" font-size="11" text-anchor="middle" style="fill:var(--blocker)">openen</text>
+      <text x="355" y="148" font-size="11" text-anchor="middle" style="fill:var(--blocker)">openen</text>
+      <rect x="83" y="160" width="310" height="28" rx="4" style="fill:var(--accent-soft);stroke:var(--ok);stroke-width:2"/>
+      <text x="238" y="178" font-size="12" text-anchor="middle" style="fill:var(--ok)">één nieuwe klasse · compiler eist alle methoden</text>
+
+      <text x="0" y="214" font-size="12" style="fill:var(--ok)">Nieuw type: één klasse erbij, de compiler eist elke methode.</text>
+      <text x="0" y="232" font-size="12" style="fill:var(--blocker)">Nieuwe operatie: elke klasse openen, en het type leert</text>
+      <text x="0" y="248" font-size="12" style="fill:var(--blocker)">tarieven, refund-rails en risicoregels kennen.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="296" font-size="15" font-weight="600" style="fill:var(--accent)">B · sealed + switch: elke kolom is een functie</text>
+      <text x="0" y="316" font-size="12" style="fill:var(--muted)">één switch per operatie, in de module die hem bezit</text>
+      <text x="121" y="342" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">fee</text>
+      <text x="199" y="342" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">refund</text>
+      <text x="277" y="342" font-size="12" text-anchor="middle" class="mono" style="fill:currentColor">settle</text>
+      <text x="355" y="342" font-size="12" text-anchor="middle" class="mono" style="fill:var(--ok)">+ risk</text>
+
+      <text x="0" y="368" font-size="12" class="mono" style="fill:currentColor">Card</text>
+      <text x="0" y="398" font-size="12" class="mono" style="fill:currentColor">iDEAL</text>
+      <text x="0" y="428" font-size="12" class="mono" style="fill:currentColor">SEPA DD</text>
+      <text x="0" y="458" font-size="12" class="mono" style="fill:var(--accent)">+ Wero</text>
+
+      <g style="fill:var(--surface);stroke:var(--muted)">
+        <rect x="85" y="352" width="72" height="24" rx="3"/><rect x="163" y="352" width="72" height="24" rx="3"/><rect x="241" y="352" width="72" height="24" rx="3"/>
+        <rect x="85" y="382" width="72" height="24" rx="3"/><rect x="163" y="382" width="72" height="24" rx="3"/><rect x="241" y="382" width="72" height="24" rx="3"/>
+        <rect x="85" y="412" width="72" height="24" rx="3"/><rect x="163" y="412" width="72" height="24" rx="3"/><rect x="241" y="412" width="72" height="24" rx="3"/>
+      </g>
+      <rect x="319" y="350" width="72" height="118" rx="4" style="fill:var(--accent-soft);stroke:var(--ok);stroke-width:2"/>
+      <text x="355" y="398" font-size="12" text-anchor="middle" style="fill:var(--ok)">één</text>
+      <text x="355" y="413" font-size="12" text-anchor="middle" style="fill:var(--ok)">nieuwe</text>
+      <text x="355" y="428" font-size="12" text-anchor="middle" style="fill:var(--ok)">functie</text>
+      <rect x="85" y="442" width="72" height="24" rx="3" style="fill:var(--surface);stroke:var(--accent);stroke-width:2"/>
+      <text x="121" y="458" font-size="11" text-anchor="middle" style="fill:var(--accent)">compiler!</text>
+      <rect x="163" y="442" width="72" height="24" rx="3" style="fill:var(--surface);stroke:var(--blocker);stroke-width:2;stroke-dasharray:4 3"/>
+      <text x="199" y="458" font-size="11" text-anchor="middle" class="mono" style="fill:var(--blocker)">default</text>
+      <rect x="241" y="442" width="72" height="24" rx="3" style="fill:var(--surface);stroke:var(--accent);stroke-width:2"/>
+      <text x="277" y="458" font-size="11" text-anchor="middle" style="fill:var(--accent)">compiler!</text>
+
+      <text x="0" y="494" font-size="12" style="fill:var(--ok)">Nieuwe operatie: één functie erbij.</text>
+      <text x="0" y="512" font-size="12" style="fill:var(--accent)">Nieuw type: elke switch moet mee; de compiler wijst ze aan,</text>
+      <text x="0" y="528" font-size="12" style="fill:var(--blocker)">behalve waar default staat: daar valt Wero stil doorheen.</text>
+    </svg>
+    <figcaption>Dezelfde tabel, twee snijrichtingen. A maakt types goedkoop en operaties duur. B maakt operaties goedkoop, en houdt nieuwe types betaalbaar zolang elke <code>switch</code> zonder <code>default</code> is geschreven: dan is elke vergeten cel een compileerfout. Eén <code>default</code> maakt van die cel een stil gat.</figcaption>
+  </figure>
+
+  <h3>Wat de compiler wel en niet controleert</h3>
+  <p>Elke regel hieronder is gecompileerd met <code>javac -Xlint:all</code> op JDK 25.0.4. De meldingen zijn letterlijk overgenomen.</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Situatie</th><th>Wat er gebeurt</th></tr></thead>
+    <tbody>
+      <tr><td><code>switch</code>-expressie over sealed type, één subtype vergeten</td><td>Fout: <code>the switch expression does not cover all possible input values</code></td></tr>
+      <tr><td><code>switch</code>-statement met type patterns, subtype vergeten</td><td>Fout: <code>the switch statement does not cover all possible input values</code></td></tr>
+      <tr><td>Alleen cases mét guard voor <code>Card</code> (<code>case Card c when …</code>), geen kale <code>case Card</code></td><td>Dezelfde "does not cover"-fout. Guards tellen niet mee voor exhaustiveness; de compiler weet niet dat jouw twee guards samen alles afdekken.</td></tr>
+      <tr><td><code>case Card c -&gt;</code> vóór <code>case Card c when …</code>, of <code>default</code> vóór een case</td><td>Fout: <code>this case label is dominated by a preceding case label</code></td></tr>
+      <tr><td>Twee guards voor <code>Card</code> die elkaar overlappen, in de verkeerde volgorde</td><td><b>Compileert zonder waarschuwing.</b> Dominantie geldt alleen voor cases zonder guard. Of <code>when region == EEA</code> vóór of na <code>when scheme == AMEX</code> staat, is jouw verantwoordelijkheid.</td></tr>
+      <tr><td>Exhaustive switch over sealed type, plús een overbodige <code>default</code></td><td><b>Compileert zonder fout of waarschuwing.</b> Pas op de dag dat er een subtype bijkomt, merk je dat de controle uitstaat: dan merk je juist niets.</td></tr>
+      <tr><td>Enum-<code>switch</code>-expressie, constante vergeten</td><td>Fout: <code>the switch expression does not cover all possible input values</code></td></tr>
+      <tr><td>Enum-<code>switch</code>-<b>statement</b> (pijl- of dubbelepuntvorm), constante vergeten</td><td><b>Compileert.</b> Een "gewone" switch-statement over een enum hoeft niet exhaustive te zijn (JLS §14.11.2, om oude code te laten compileren). De nieuwe constante doet stil niets. Voeg je <code>case null</code> toe, dan wordt het een <i>enhanced</i> switch en moet hij wél exhaustive zijn.</td></tr>
+      <tr><td><code>null</code> als selector</td><td><code>NullPointerException</code>, ook mét <code>default</code>: <code>default</code> vangt geen <code>null</code>. Alleen een expliciete <code>case null</code> (of <code>case null, default</code>) doet dat.</td></tr>
+      <tr><td>Record zonder implementatie van de abstracte methode van zijn sealed interface</td><td>Fout: <code>PricedWero is not abstract and does not override abstract method fee(BigDecimal) in PricedMethod</code>. Bij polymorfisme dwingt de compiler het nieuwe <i>type</i> af.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout"><p><b>Geverifieerd: aparte compilatie.</b> Een hiërarchie <code>Card</code>, <code>Ideal</code> en een enum <code>Kind { CARD, IDEAL }</code> gecompileerd, samen met een klasse <code>Fees</code> met vier varianten. Daarna <code>Wero</code> en <code>WERO</code> toegevoegd en alleen de hiërarchie opnieuw gecompileerd. Resultaat voor de nieuwe waarde: exhaustive sealed switch → <code>java.lang.MatchException</code> (zonder message); switch met <code>default</code> → stil de default-tak (<code>0.00</code>); enum-switch-expressie → <code>MatchException</code>; enum-switch-statement → stil overgeslagen. Na hercompilatie van <code>Fees</code> gaven beide expressies de compileerfout. Bij een multi-module build (aparte jars per team) is dit geen theorie: de module die je niet opnieuw bouwt, valt bij runtime om, en dat is nog de goede uitkomst.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>Een betaalplatform met drie betaalmethodes, opgeslagen als één JPA-entity met een <code>String type</code> en een handvol nullable velden (<code>scheme</code> en <code>issuerRegion</code> voor kaarten, <code>bic</code> voor iDEAL, <code>mandateId</code> voor SEPA-incasso). De kennis over "welke methodes er zijn" zit verspreid: <code>FeeCalculator</code> (team Pricing), <code>RefundService</code> (team Refunds) en <code>SettlementCalendar</code> (team Treasury). De PR voegt Wero toe.</p>
+  <div class="diff">
+    <div class="diff-head">PR #577 · Wero als betaalmethode</div>
+<pre><span>// PaymentMethodTypes.java</span><span>public final class PaymentMethodTypes {</span><span class="d">-    public static final Set&lt;String&gt; SUPPORTED = Set.of("CARD", "IDEAL", "SEPA_DD");</span><span class="a">+    public static final Set&lt;String&gt; SUPPORTED = Set.of("CARD", "IDEAL", "SEPA_DD", "WERO");</span><span>}</span><span></span><span>// RefundService.java</span><span>    private RefundRoute routeFor(PaymentMethodEntity method) {</span><span>        return switch (method.getType()) {</span><span>            case "CARD" -&gt; RefundRoute.SCHEME_REFUND;</span><span class="a">+            case "WERO" -&gt; RefundRoute.WERO_REFUND;</span><span>            default -&gt; RefundRoute.SEPA_CREDIT_TRANSFER;   // IDEAL, SEPA_DD</span><span>        };</span><span>    }</span></pre>
+  </div>
+  <p>De diff zelf ziet er goed uit: één type erbij, één case erbij. Het probleem staat in een bestand dat niet in de diff zit:</p>
+  <div class="diff">
+    <div class="diff-head">FeeCalculator.java · niet aangeraakt in deze PR</div>
+<pre><span>public BigDecimal feeFor(PaymentMethodEntity method, BigDecimal amount) {</span><span>    if ("CARD".equals(method.getType())) {</span><span>        if ("AMEX".equals(method.getScheme())) return percent(amount, "2.90");</span><span>        return "EEA".equals(method.getIssuerRegion())</span><span>                ? percent(amount, "0.30") : percent(amount, "1.90");</span><span>    } else if ("IDEAL".equals(method.getType())) {</span><span>        return new BigDecimal("0.29");</span><span>    } else if ("SEPA_DD".equals(method.getType())) {</span><span>        return new BigDecimal("0.35");</span><span>    }</span><span>    return BigDecimal.ZERO;   // testmethodes zijn gratis</span><span>}</span></pre>
+  </div>
+  <ol>
+    <li><b>Elke Wero-betaling kost de merchant €0,00.</b> <code>"WERO"</code> valt door alle takken naar <code>return BigDecimal.ZERO</code> (nagespeeld). Niemand merkt het tot de maandfacturatie; <code>FeeCalculatorTest</code> kent Wero niet en blijft groen.</li>
+    <li><b>De reviewer kan het in de diff niet zien.</b> Het gat zit in code die niet veranderd is. Wie het vindt, vindt het door te zoeken op <code>"SEPA_DD"</code> en elke treffer na te lopen. Zo vind je ook de derde plek: <code>SettlementCalendar</code> met <code>default -&gt; Period.ofDays(2)</code>, dus Wero krijgt stil de kaartvertraging.</li>
+    <li><b>Een tikfout compileert ook.</b> <code>"WER0"</code> met een nul geeft net zo goed €0,00 (nagespeeld). Strings hebben geen exhaustiveness.</li>
+    <li><b>Onmogelijke toestanden zijn representeerbaar.</b> Een iDEAL-betaling met een <code>scheme</code>, een kaart zonder <code>issuerRegion</code>: de entity staat het toe, dus elke operatie moet het controleren of erop vertrouwen.</li>
+  </ol>
+  <p>"Gebruik een enum" of "maak er Strategy van" zijn allebei verdedigbare reacties. Ze lossen alleen niet hetzelfde op. Hieronder dezelfde fee-regel op vijf manieren; alle vijf zijn gecompileerd en gedraaid op JDK 25.</p>
+
+  <h3>Vijf varianten voor dezelfde regel</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · <code>instanceof</code>-keten</h4>
+<pre class="snip">if (method instanceof Card card) {
+    if (card.scheme() == Scheme.AMEX) return percent(amount, "2.90");
+    return card.issuerRegion() == Region.EEA
+            ? percent(amount, "0.30") : percent(amount, "1.90");
+} else if (method instanceof Ideal) {
+    return new BigDecimal("0.29");
+} else if (method instanceof SepaDebit) {
+    return new BigDecimal("0.35");
+}
+throw new IllegalArgumentException("Onbekende betaalmethode: " + method);</pre>
+      <p>Beter dan strings: typen in plaats van tekst, en de laatste regel gooit in plaats van €0 terug te geven. <b>Prijs:</b> de compiler controleert niets. Wero geeft <code>IllegalArgumentException</code> tijdens runtime (nagespeeld), in productie, bij de eerste betaling. Een <code>if</code>-keten over een sealed type is in Java 25 bijna altijd een switch die nog niet is omgeschreven.</p>
+    </div>
+    <div>
+      <h4>B · Enum + <code>switch</code>-expressie</h4>
+<pre class="snip">return switch (method.type()) {
+    case CARD -&gt; method.scheme() == Scheme.AMEX ? percent(amount, "2.90")
+            : method.issuerRegion() == Region.EEA ? percent(amount, "0.30")
+            : percent(amount, "1.90");
+    case IDEAL -&gt; new BigDecimal("0.29");
+    case SEPA_DD -&gt; new BigDecimal("0.35");
+    case WERO -&gt; new BigDecimal("0.20");
+};</pre>
+      <p>Exhaustive: een nieuwe constante zonder case is een compileerfout. <b>Prijs:</b> een enum is een label zonder eigen data. <code>scheme</code> en <code>issuerRegion</code> blijven nullable velden naast het label, dus onmogelijke toestanden blijven mogelijk. En de bescherming geldt alleen voor de <i>expressie</i>: schrijft iemand ergens een switch-<i>statement</i> over dezelfde enum, dan controleert de compiler niets.</p>
+    </div>
+    <div>
+      <h4>C · Strategy + factory</h4>
+<pre class="snip">interface FeeRule {
+    MethodType type();
+    BigDecimal feeFor(PaymentMethod method, BigDecimal amount);
+}
+
+@Component
+class FeeRules {
+    private final Map&lt;MethodType, FeeRule&gt; byType;
+
+    FeeRules(List&lt;FeeRule&gt; rules) {   // Spring injecteert alle FeeRule-beans
+        byType = rules.stream().collect(toMap(FeeRule::type, identity(),
+                (a, b) -&gt; { throw new IllegalStateException("Dubbele FeeRule voor " + a.type()); },
+                () -&gt; new EnumMap&lt;&gt;(MethodType.class)));
+        var missing = EnumSet.complementOf(EnumSet.copyOf(byType.keySet()));
+        if (!missing.isEmpty()) throw new IllegalStateException("Geen FeeRule voor " + missing);
+    }
+}</pre>
+      <p>Een nieuw type is een nieuwe bean; niemand hoeft een bestaand bestand te openen. Elke regel kan eigen dependencies krijgen (een tarieventabel, een FX-service). <b>Prijs:</b> de compiler ziet niets. Zonder de dekkingscheck in de constructor faalt een vergeten regel pas bij de eerste Wero-betaling; mét die check faalt de applicatie bij het opstarten (nagespeeld: <code>IllegalStateException: Geen FeeRule voor [SEPA_DD, WERO]</code>). Dat is het beste wat je hier kunt krijgen, en die check schrijft bijna niemand. Plus: vier klassen en een interface voor wat een tabel van vier regels is.</p>
+    </div>
+    <div>
+      <h4>D · Polymorfe methode op het type</h4>
+<pre class="snip">public sealed interface PaymentMethod permits Card, Ideal, SepaDebit, Wero {
+    BigDecimal fee(BigDecimal amount);
+    RefundRoute refundRoute();
+    Period settlementDelay();
+}</pre>
+      <p>Een nieuw type móét elke methode implementeren; de compiler dwingt het af. <b>Prijs:</b> elke nieuwe operatie opent elke record, en het domeintype trekt kennis van drie teams naar zich toe. Zodra de fee afhangt van het merchantcontract, wordt het <code>fee(amount, contract, fxRates)</code>, en dat kan een record niet laten injecteren. Polymorfisme is hier sterk zolang de operatie <i>intrinsiek</i> is aan het type (<code>Money.add</code>, <code>Iban.isValid</code>), niet als het beleid van iemand anders is.</p>
+    </div>
+    <div>
+      <h4>E · Sealed interface + records + pattern-matching-<code>switch</code></h4>
+<pre class="snip">public sealed interface PaymentMethod permits Card, Ideal, SepaDebit, Wero {}
+public record Card(Scheme scheme, Region issuerRegion) implements PaymentMethod {}
+public record Ideal(String bic) implements PaymentMethod {}
+public record SepaDebit(String mandateId) implements PaymentMethod {}
+public record Wero(String walletId) implements PaymentMethod {}
+
+// FeeCalculator.java, in de pricing-module
+public BigDecimal feeFor(PaymentMethod method, BigDecimal amount) {
+    return switch (method) {
+        case Card(var scheme, _) when scheme == Scheme.AMEX -&gt; percent(amount, "2.90");
+        case Card(_, var region) when region == Region.EEA -&gt; percent(amount, "0.30");
+        case Card _ -&gt; percent(amount, "1.90");
+        case Ideal _ -&gt; new BigDecimal("0.29");
+        case SepaDebit _ -&gt; new BigDecimal("0.35");
+        case Wero _ -&gt; new BigDecimal("0.20");
+    };
+}</pre>
+      <p>Elke methode draagt alleen haar eigen data; een iDEAL-betaling met een <code>scheme</code> bestaat niet meer. De operatie blijft in de module die haar bezit. Een nieuw record geeft een compileerfout in elke switch die het nog niet kent. Record patterns halen de componenten eruit, <code>_</code> (unnamed pattern, definitief sinds Java 22) zegt "dit veld doet er niet toe", en de guards lezen als de tarieftabel. <b>Prijs:</b> de volgorde van de guards is semantiek (zie hieronder), en de bescherming werkt alleen zolang niemand een <code>default</code> toevoegt.</p>
+    </div>
+  </div>
+
+  <h3>De afweging op een rij</h3>
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Variant</th><th>Nieuw type landt</th><th>Nieuwe operatie landt</th><th>Vergeten geval gevonden door</th></tr></thead>
+    <tbody>
+      <tr><td>String + <code>if</code>/<code>switch</code></td><td>in elke keten, zoeken met grep</td><td>één methode</td><td>niemand; stil fallback</td></tr>
+      <tr><td>A · <code>instanceof</code>-keten</td><td>in elke keten</td><td>één methode</td><td>runtime-exception, als de keten eindigt met <code>throw</code></td></tr>
+      <tr><td>B · enum + switch-expressie</td><td>constante + elke switch</td><td>één methode</td><td>compiler, alleen bij expressies zonder <code>default</code></td></tr>
+      <tr><td>C · Strategy + factory</td><td>één nieuwe bean</td><td>nieuwe interface + een bean per type</td><td>opstartcheck, als iemand die schreef; anders runtime</td></tr>
+      <tr><td>D · polymorfe methode</td><td>één nieuwe klasse</td><td>elke klasse</td><td>compiler (abstracte methode)</td></tr>
+      <tr><td>E · sealed + pattern switch</td><td>één record + elke switch</td><td>één functie</td><td>compiler, bij elke switch zonder <code>default</code>; anders <code>MatchException</code> bij aparte compilatie</td></tr>
+    </tbody>
+  </table></div>
+  <p>De vraag is dus niet "switch of polymorfisme", maar: <b>wat groeit hier, en wie bezit de logica?</b> Betaalmethodes komen er een of twee per jaar bij; operaties erop komen er elk kwartaal bij, en ze horen bij verschillende teams. Dat is kolomwerk: variant E. Neem nu de koppelingen met acquirers. Daar komen elk kwartaal nieuwe bij, de set operaties staat vast (<code>authorise</code>, <code>capture</code>, <code>refund</code>), en elke koppeling heeft een eigen HTTP-client, eigen credentials en eigen foutcodes. Dat is rijwerk: een interface met een Spring-bean per acquirer.</p>
+<pre class="snip">public interface AcquirerConnector {
+    AcquirerId id();
+    AuthorisationResult authorise(AuthorisationRequest request);
+    CaptureResult capture(CaptureRequest request);
+    RefundResult refund(RefundRequest request);
+}
+
+@Component
+class AcquirerRegistry {
+    private final Map&lt;AcquirerId, AcquirerConnector&gt; byId;
+
+    AcquirerRegistry(List&lt;AcquirerConnector&gt; connectors) {   // dubbele id: faalt bij opstarten
+        this.byId = connectors.stream().collect(toUnmodifiableMap(AcquirerConnector::id, identity()));
+    }
+}</pre>
+  <p>Een sealed <code>AcquirerConnector</code> met een <code>switch</code> in een centrale service zou die service afhankelijk maken van elke acquirer-client. Daar is de open interface juist goed, en dat de compiler een vergeten acquirer niet vindt, maakt niet uit: er is geen switch die hem kan vergeten.</p>
+
+  <h3>Twee details die in bijna elke PR terugkomen</h3>
+  <p><b>Guards worden van boven naar beneden getest.</b> In variant E staat de Amex-regel bewust vóór de EER-regel. Draai je ze om, dan compileert het nog steeds, zonder waarschuwing, en een EER-Amex-betaling van €200 kost €0,60 in plaats van €5,80 (nagespeeld). De compiler meldt alleen dominantie door een case <i>zonder</i> guard; overlappende guards zijn voor de reviewer. Lees een guarded switch daarom als een beslistabel en vraag bij elke rij: welke input die hieronder bedoeld is, wordt hier al gevangen?</p>
+  <p><b>Aan de rand blijft één string-switch, en dáár hoort <code>default</code>.</b> De database en de API kennen geen sealed types. De mapper van entity naar domein switcht op de string, en daar is <code>default -&gt; throw new UnknownPaymentMethodException(type)</code> precies goed: een string is een open type, er bestaat geen exhaustive switch over. Het verschil met de fout hierboven: deze <code>default</code> gooit, op één plek, aan de grens, in plaats van een bedrag te verzinnen midden in de logica.</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b>Meerdere switches over hetzelfde sealed type.</b> Dat lijkt op "dezelfde switch op drie plekken", de klassieke OCP-smell. Maar als elke switch een andere operatie is, in de module die haar bezit, en geen ervan een <code>default</code> heeft, dan is dit het ontwerp en niet het probleem. De compiler houdt ze synchroon. De smell is pas echt als het drie keer <i>dezelfde</i> vraag is ("is dit een kaart met 3DS?") of als de switches op een string of een niet-sealed type staan.</li>
+    <li><b>Eén kleine, stabiele switch in één methode.</b> <code>switch (scheme) { case VISA -&gt; "Visa"; … }</code> voor een weergavenaam: een Strategy-hiërarchie daarvoor is speculatieve generaliteit.</li>
+    <li><b>Een enkele <code>instanceof</code> voor een vraag over één type.</b> <code>if (method instanceof PayByBank p)</code> om alleen voor Pay by Bank iets extra's te doen, is geen keten. Alle andere types doen niets, en dat blijft zo als er een type bijkomt.</li>
+    <li><b><code>default</code> over een open type.</b> Strings, getallen, een niet-sealed interface, een enum van een externe partij die je niet beheert (bijv. een gegenereerde enum uit een API-spec): daar is een exhaustive switch niet mogelijk of niet zinvol, en is <code>default -&gt; throw</code> de juiste keuze.</li>
+    <li><b>Strategy waar de set echt open is.</b> Acquirer-koppelingen, exportformaten per klant, plug-ins van andere teams: types groeien, operaties staan vast, en elke implementatie heeft eigen dependencies.</li>
+    <li><b>Polymorfisme voor intrinsiek gedrag.</b> <code>Money.add</code>, <code>Iban.checksumValid()</code>: hoort bij het type, heeft geen externe dependencies, en geen ander team bezit het.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als een nieuw type nu al stil in een fallback valt die geld, routering of compliance raakt (fee €0, refund via het verkeerde rail, overgeslagen controle) · <span class="sev major">major</span> bij een guard-volgorde die voor een deel van de input het verkeerde resultaat geeft, of bij een nieuwe <code>default</code> over een sealed type in logica die geld raakt, ook als hij vandaag nog klopt · <span class="sev minor">minor</span> bij een <code>instanceof</code>-keten of <code>default -&gt; throw</code> over een sealed type (faalt luid, maar pas tijdens runtime), en bij Strategy + factory voor twee vaste gevallen · <span class="sev nit">nit</span> of laat gaan: switch of polymorfisme als smaakvraag, zonder dat je kunt zeggen wat er groeit.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Switch op type is een OCP-schending. Graag Strategy-pattern gebruiken.</p><p style="color:var(--muted);font-size:14px">Een regel uit een boek, geen gevolg. De auteur bouwt vier klassen en een factory, de fee-fout in <code>FeeCalculator</code> blijft liggen, en de volgende betaalmethode wordt alsnog vergeten, nu in een ontbrekende bean.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> <code>FeeCalculator.feeFor</code> (niet in deze PR) eindigt met <code>return BigDecimal.ZERO</code>, dus elke Wero-betaling krijgt €0,00 fee. Lokaal nagespeeld met <code>type = "WERO"</code>. Ook <code>SettlementCalendar</code> valt via <code>default</code> naar de kaartvertraging.</p><p><b>Voorstel:</b> voor deze PR: Wero expliciet toevoegen in beide plekken, en de fallback in <code>FeeCalculator</code> laten gooien in plaats van 0 teruggeven. Als vervolg: <code>PaymentMethod</code> sealed maken met een record per methode en de drie switches zonder <code>default</code> schrijven. Dan is de volgende methode een compileerfout op elke plek die hem nog niet kent, in plaats van een maandfactuur die niet klopt.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout, en ontwerpbevindingen tellen mee: zeg dan waarom de herschrijving beter is. Context van de PR-beschrijving: Pay by Bank is een open-banking-betaling, onherroepelijk; een refund gaat als SEPA-overboeking naar <code>payerIban</code>. Kaartrefunds gaan via het scheme (<code>SCHEME_REFUND</code>), iDEAL- en SEPA-refunds als SEPA-overboeking. Nieuwe tariefregel van Pricing: zakelijke kaarten (<code>commercial</code>) kosten altijd 2,50%, ook binnen de EER; het EER-tarief van 0,30% geldt alleen voor consumentenkaarten; Amex blijft altijd 2,90%. <code>Card</code> is <code>record Card(Scheme scheme, Region issuerRegion, boolean commercial)</code>. <code>provider_config.country</code> heeft een unique constraint. De auteur schrijft: "De compiler wees alle plekken aan, dus PayByBank zit overal in."</p>
+  <div class="diff">
+    <div class="diff-head">PR #583 · Pay by Bank + tarief voor zakelijke kaarten</div>
+<pre><span><span class="ln">1</span>// PaymentMethod.java</span><span><span class="ln">2</span>public sealed interface PaymentMethod</span><span class="d"><span class="ln">3</span>-        permits Card, Ideal, SepaDebit {}</span><span class="a"><span class="ln">4</span>+        permits Card, Ideal, SepaDebit, PayByBank {}</span><span><span class="ln">5</span></span><span><span class="ln">6</span>// PayByBank.java (nieuw)</span><span class="a"><span class="ln">7</span>+public record PayByBank(String providerId, String country, String payerIban)</span><span class="a"><span class="ln">8</span>+        implements PaymentMethod {}</span><span><span class="ln">9</span></span><span><span class="ln">10</span>// FeeCalculator.java</span><span><span class="ln">11</span>    public BigDecimal feeFor(PaymentMethod method, BigDecimal amount) {</span><span><span class="ln">12</span>        return switch (method) {</span><span><span class="ln">13</span>            case Card(var scheme, _, _) when scheme == Scheme.AMEX -&gt; percent(amount, "2.90");</span><span><span class="ln">14</span>            case Card(_, var region, _) when region == Region.EEA -&gt; percent(amount, "0.30");</span><span class="a"><span class="ln">15</span>+            case Card c when c.commercial() -&gt; percent(amount, "2.50");</span><span><span class="ln">16</span>            case Card _ -&gt; percent(amount, "1.90");</span><span><span class="ln">17</span>            case Ideal _ -&gt; new BigDecimal("0.29");</span><span><span class="ln">18</span>            case SepaDebit _ -&gt; new BigDecimal("0.35");</span><span class="a"><span class="ln">19</span>+            case PayByBank _ -&gt; new BigDecimal("0.25");</span><span><span class="ln">20</span>        };</span><span><span class="ln">21</span>    }</span><span><span class="ln">22</span></span><span><span class="ln">23</span>// SettlementCalendar.java</span><span><span class="ln">24</span>    Period delayFor(PaymentMethod method) {</span><span><span class="ln">25</span>        return switch (method) {</span><span><span class="ln">26</span>            case Card _ -&gt; Period.ofDays(2);</span><span><span class="ln">27</span>            case Ideal _ -&gt; Period.ofDays(1);</span><span><span class="ln">28</span>            case SepaDebit _ -&gt; Period.ofDays(5);   // storno-risico</span><span class="a"><span class="ln">29</span>+            case PayByBank _ -&gt; Period.ofDays(1);</span><span><span class="ln">30</span>        };</span><span><span class="ln">31</span>    }</span><span><span class="ln">32</span></span><span><span class="ln">33</span>// RefundFeeStrategy.java (nieuw)</span><span class="a"><span class="ln">34</span>+public interface RefundFeeStrategy {</span><span class="a"><span class="ln">35</span>+    BigDecimal fee(Refund refund);</span><span class="a"><span class="ln">36</span>+}</span><span class="a"><span class="ln">37</span>+</span><span class="a"><span class="ln">38</span>+@Component</span><span class="a"><span class="ln">39</span>+class FullRefundFeeStrategy implements RefundFeeStrategy {</span><span class="a"><span class="ln">40</span>+    public BigDecimal fee(Refund refund) { return BigDecimal.ZERO; }</span><span class="a"><span class="ln">41</span>+}</span><span class="a"><span class="ln">42</span>+</span><span class="a"><span class="ln">43</span>+@Component</span><span class="a"><span class="ln">44</span>+class PartialRefundFeeStrategy implements RefundFeeStrategy {</span><span class="a"><span class="ln">45</span>+    public BigDecimal fee(Refund refund) { return new BigDecimal("0.10"); }</span><span class="a"><span class="ln">46</span>+}</span><span class="a"><span class="ln">47</span>+</span><span class="a"><span class="ln">48</span>+@Component</span><span class="a"><span class="ln">49</span>+class RefundFeeStrategyFactory {</span><span class="a"><span class="ln">50</span>+    private final FullRefundFeeStrategy full;</span><span class="a"><span class="ln">51</span>+    private final PartialRefundFeeStrategy partial;</span><span class="a"><span class="ln">52</span>+    // constructor-injectie weggelaten</span><span class="a"><span class="ln">53</span>+</span><span class="a"><span class="ln">54</span>+    RefundFeeStrategy forRefund(Refund refund) {</span><span class="a"><span class="ln">55</span>+        return refund.isFull() ? full : partial;</span><span class="a"><span class="ln">56</span>+    }</span><span class="a"><span class="ln">57</span>+}</span><span><span class="ln">58</span></span><span><span class="ln">59</span>// RefundService.java</span><span><span class="ln">60</span>    public RefundResult refund(Refund refund) {</span><span><span class="ln">61</span>        PaymentMethod method = refund.payment().method();</span><span class="a"><span class="ln">62</span>+        if (method instanceof PayByBank p) {</span><span class="a"><span class="ln">63</span>+            ProviderConfig config = configs.findByCountry(p.country())</span><span class="a"><span class="ln">64</span>+                    .orElse(configs.save(ProviderConfig.defaultsFor(p.country())));</span><span class="a"><span class="ln">65</span>+            refund = refund.withProvider(config);</span><span class="a"><span class="ln">66</span>+        }</span><span class="d"><span class="ln">67</span>-        BigDecimal fee = BigDecimal.ZERO;</span><span class="a"><span class="ln">68</span>+        BigDecimal fee = refundFees.forRefund(refund).fee(refund);</span><span><span class="ln">69</span>        return gateway.submit(refund, routeFor(method), fee);</span><span><span class="ln">70</span>    }</span><span><span class="ln">71</span></span><span><span class="ln">72</span>    private RefundRoute routeFor(PaymentMethod method) {</span><span><span class="ln">73</span>        return switch (method) {</span><span><span class="ln">74</span>            case Card _ -&gt; RefundRoute.SCHEME_REFUND;</span><span><span class="ln">75</span>            case Ideal _, SepaDebit _ -&gt; RefundRoute.SEPA_CREDIT_TRANSFER;</span><span><span class="ln">76</span>            default -&gt; RefundRoute.SCHEME_REFUND;</span><span><span class="ln">77</span>        };</span><span><span class="ln">78</span>    }</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regel 76</b> <span class="sev blocker">blocker</span> Niet in de PR veranderd, en juist daarom het belangrijkste. <code>routeFor</code> dekte al alle drie de subtypes af, en de <code>default</code> stond er "voor de zekerheid". Zo'n overbodige <code>default</code> compileert zonder waarschuwing (nagespeeld). Nu valt <code>PayByBank</code> erin en gaat elke Pay-by-Bank-refund naar <code>SCHEME_REFUND</code>: een kaartrefund voor een betaling zonder kaart. Op zijn best faalt elke refund bij het scheme, op zijn slechtst blijft hij hangen in een status die niemand monitort. Dit is precies de plek waar "de compiler wees alle plekken aan" niet klopt: de compiler wijst geen switch aan die een <code>default</code> heeft. Haal de <code>default</code> weg (nagespeeld: dan geeft regel 73 <code>the switch expression does not cover all possible input values</code>) en voeg <code>case PayByBank _ -&gt; RefundRoute.SEPA_CREDIT_TRANSFER</code> toe. Het is ook een goede gewoonte om bij een nieuw subtype in de PR te zoeken op <code>default</code> in alle switches over dat type.</p>
+      <p><b>Regels 63–64</b> <span class="sev blocker">blocker</span> <i>Uit F3 (Optional en afwezigheid).</i> <code>orElse</code> evalueert zijn argument altijd, dus <code>configs.save(...)</code> draait bij elke refund, ook als de config bestaat. Met de unique constraint op <code>country</code> faalt elke tweede Pay-by-Bank-refund per land (nagespeeld met een stub-repository: refund 1 slaagt, refund 2 geeft een duplicate-key-fout, 2 saves). Zonder die constraint krijg je dubbele rijen en daarna een fout op <code>findByCountry</code>. Gebruik <code>orElseGet(() -&gt; configs.save(...))</code>, en vraag of een ontbrekende config niet gewoon een fout moet zijn in plaats van een stil aangemaakte default.</p>
+      <p><b>Regels 14–15</b> <span class="sev major">major</span> De guard voor zakelijke kaarten staat ná de EER-guard. Guards worden van boven naar beneden getest, dus een zakelijke Visa uit de EER valt al op regel 14 in het consumententarief: €3,00 in plaats van €25,00 op €1.000 (nagespeeld). Zakelijke kaarten van buiten de EER en Amex kloppen wel, en daarom ziet een test met alleen die gevallen het niet. De compiler meldt niets: dominantie geldt alleen voor cases zonder guard. Zet de <code>commercial</code>-guard tussen de Amex- en de EER-regel, en vraag om een test per rij van de tarieftabel, inclusief de combinatie EER + zakelijk. Waarom major en geen blocker: het is een te lage fee die je kunt nafactureren, geen geld dat verdwijnt of een flow die stopt; maar het moet vóór de merge goed.</p>
+      <p><b>Regels 33–57</b> <span class="sev minor">minor</span> Speculatieve generaliteit: een interface, drie <code>@Component</code>-klassen en een factory voor één regel beleid: volledige refund gratis, gedeeltelijke €0,10. Er zijn twee gevallen, ze zijn uitputtend (volledig of niet) en geen van beide heeft dependencies. De lezer moet nu vier bestanden openen om <code>refund.isFull() ? ZERO : new BigDecimal("0.10")</code> te vinden. Voorstel: een private methode <code>refundFee(Refund)</code> in <code>RefundService</code>, of een regel in de bestaande tariefconfiguratie als Pricing hem wil kunnen wijzigen. Wordt de refund-fee ooit per contract of per methode verschillend, dan is dat data (een tarieftabel), geen nieuwe klasse per geval. Minor, geen nit: het blijft niet bij deze PR, want het volgende "geval" wordt nu een vijfde klasse.</p>
+      <p><b>Regels 23–31</b> <span class="sev ok">geen probleem</span> De afleider. Weer een switch op het type van de betaalmethode, de derde in deze PR: lijkt op "dezelfde switch op drie plekken". Maar het is een andere operatie (settlementvertraging, van Treasury), over een sealed type, zonder <code>default</code>. Dat is hoe variant E bedoeld is: dit is de switch die de compiler wél aanwees, en daarom staat <code>PayByBank</code> er correct in. Verplaatsen naar een methode <code>settlementDelay()</code> op het record zou Treasury-beleid in het domeintype trekken.</p>
+      <p><b>Regel 62</b> <span class="sev ok">geen probleem</span> Een losse <code>instanceof PayByBank p</code> is geen keten: alleen Pay by Bank heeft een providerconfig nodig, en alle andere types (ook toekomstige) doen hier niets. Een switch met <code>case Card _, Ideal _, SepaDebit _ -&gt; {}</code> voegt alleen ruis toe. Het probleem op deze regels is <code>orElse</code>, niet de <code>instanceof</code>.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Team Payments voegt <code>record PayByBank</code> toe aan de sealed <code>PaymentMethod</code> in <code>payment-model.jar</code> en deployt. <code>pricing.jar</code> en <code>reporting.jar</code> worden niet opnieuw gebouwd. Daarin staan:</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">pricing.jar</p>
+<pre class="snip">return switch (method) {
+    case Card c -&gt; cardFee(c, amount);
+    case Ideal _ -&gt; IDEAL_FEE;
+    case SepaDebit _ -&gt; SEPA_FEE;
+};</pre></div>
+        <div><p class="snip-label">reporting.jar</p>
+<pre class="snip">String label = switch (method) {
+    case Card _ -&gt; "Kaart";
+    case Ideal _ -&gt; "iDEAL";
+    default -&gt; "SEPA-incasso";
+};</pre></div>
+      </div>
+      <p class="ask">Wat gebeurt er in elk van de twee jars bij de eerste Pay-by-Bank-betaling?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Pricing gooit <code>MatchException</code>; reporting labelt de betaling stil als "SEPA-incasso".</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Bij een exhaustive switch zonder <code>default</code> zet de compiler zelf een tak neer die <code>MatchException</code> gooit als er tijdens runtime een onbekend type langskomt. Nagespeeld op JDK 25: <code>java.lang.MatchException</code>, zonder message.</li>
+          <li>Met <code>default</code> is er geen onbekend type: alles wat niet <code>Card</code> of <code>Ideal</code> is, is "SEPA-incasso". Geen fout, geen log, verkeerde rapportage.</li>
+          <li>Pricing faalt luid, en dat is de goede uitkomst. Had iemand <code>pricing.jar</code> tegen de nieuwe versie gebouwd, dan was het een compileerfout geweest; reporting had ook dan gecompileerd.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> de <code>default</code> in <code>reporting</code> labelt elk toekomstig type als SEPA-incasso. Zonder <code>default</code> wordt het een compileerfout bij de volgende betaalmethode. En zorg dat CI alle modules tegen de nieuwe <code>payment-model</code> bouwt, anders zie je het pas als <code>MatchException</code> in productie.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · voorspellen</span></div>
+      <p class="situ">Twee pogingen om zakelijke kaarten een eigen tarief te geven.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A</p>
+<pre class="snip">case Card c -&gt; percent(amount, "1.90");
+case Card c when c.commercial()
+        -&gt; percent(amount, "2.50");</pre></div>
+        <div><p class="snip-label">B</p>
+<pre class="snip">case Card c when c.issuerRegion() == EEA
+        -&gt; percent(amount, "0.30");
+case Card c when c.commercial()
+        -&gt; percent(amount, "2.50");
+case Card _ -&gt; percent(amount, "1.90");</pre></div>
+      </div>
+      <p class="ask">Welke compileert, en welk tarief krijgt een zakelijke kaart uit de EER in de variant die compileert?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A compileert niet; B compileert en geeft de zakelijke EER-kaart 0,30%.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>A: <code>case Card c</code> zonder guard vangt elke kaart, dus de regel eronder kan nooit worden bereikt. Fout: <code>this case label is dominated by a preceding case label</code>.</li>
+          <li>B: guards worden van boven naar beneden getest; de eerste die past wint. De compiler controleert niet of guards overlappen, en geeft ook met <code>-Xlint:all</code> geen waarschuwing.</li>
+          <li>De compiler vangt dus de onschuldige fout (A) en laat de gevaarlijke (B) door.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Lees een switch met guards als een beslistabel en vraag per rij welke input die voor een lagere rij bedoeld is, hier al wordt gevangen. Vraag om een test voor elke combinatie die twee guards tegelijk waar maakt.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 1 · herkennen</span></div>
+      <p class="situ">In <code>LedgerService</code> staat al jaren deze switch. De PR voegt <code>PARTIALLY_REFUNDED</code> toe aan <code>enum PaymentStatus</code> en is groen.</p>
+<pre class="snip">switch (payment.status()) {
+    case AUTHORISED -&gt; ledger.reserve(payment);
+    case CAPTURED -&gt; ledger.book(payment);
+    case REFUNDED -&gt; ledger.reverse(payment);
+}</pre>
+      <p class="ask">Waarom gaf de compiler geen fout, en wat stel je voor?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Een switch-statement over een enum zonder patterns hoeft niet exhaustive te zijn; <code>PARTIALLY_REFUNDED</code> boekt stil niets.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>JLS §14.11.2: alleen <i>enhanced</i> switch-statements (met patterns of <code>case null</code>, of met een selector die geen enum, <code>String</code> of <code>int</code>-achtig type is) moeten exhaustive zijn. Deze is dat niet, ook met pijlen. Nagespeeld: compileert, en de nieuwe constante doet niets.</li>
+          <li>Een switch-<i>expressie</i> over dezelfde enum had wel een fout gegeven, net als dit statement met een extra <code>case null -&gt; throw …</code> (dat maakt hem enhanced; nagespeeld).</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue (blocking):</b> deze switch-statement is niet exhaustive-gecontroleerd, dus <code>PARTIALLY_REFUNDED</code> komt nooit in het grootboek. Kun je hem omschrijven naar een expressie (bijv. een <code>LedgerAction</code> teruggeven) of een <code>case null</code> toevoegen? Dan wordt de volgende status een compileerfout. Wat moet <code>PARTIALLY_REFUNDED</code> boeken?</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · kiezen</span></div>
+      <p class="situ">Een PR modelleert de externe fraudecheck-leveranciers (twee nu, naar verwachting elk kwartaal één erbij) als <code>sealed interface RiskProvider</code> met een record per leverancier, en een <code>switch</code> in <code>RiskService</code> die per record de juiste HTTP-client aanroept. Elke leverancier heeft eigen credentials, timeouts en foutcodes; de enige operatie is <code>score(Payment)</code>.</p>
+      <p class="ask">Keur je dit ontwerp goed, en met welk argument?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee: hier groeien de types en staat de operatie vast. Dat is een interface met een bean per leverancier.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Met de sealed variant wordt elke nieuwe leverancier een wijziging in <code>RiskService</code>, die daardoor afhankelijk wordt van elke client. De exhaustiveness-controle beschermt één switch die er niet hoeft te zijn.</li>
+          <li><code>interface RiskProvider { ProviderId id(); RiskScore score(Payment p); }</code> met een <code>@Component</code> per leverancier houdt elke client met zijn eigen config bij elkaar. Een nieuwe leverancier raakt geen bestaand bestand.</li>
+          <li>Vergelijk met <code>PaymentMethod</code>: weinig nieuwe types, veel operaties van verschillende teams. Daar wint de sealed switch.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>suggestion:</b> hier komen elk kwartaal leveranciers bij en blijft de operatie <code>score</code>. Een <code>RiskProvider</code>-interface met een bean per leverancier houdt elke client en zijn config bij elkaar, en een nieuwe leverancier wordt één nieuwe klasse in plaats van een wijziging in <code>RiskService</code>. Sealed + switch past beter waar de operaties groeien, zoals bij <code>PaymentMethod</code>.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte</span></div>
+      <p class="situ">Een collega "verbetert" een switch over de sealed <code>PaymentMethod</code> die alle vier de subtypes afdekt:</p>
+<pre class="snip">        case PayByBank _ -&gt; Period.ofDays(1);
++       default -&gt; throw new IllegalStateException("Onbekende methode: " + method);
+    };</pre>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short"><span class="sev minor">minor</span>: het faalt luid, maar het zet een compileerfout om in een runtime-fout.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>Vandaag verandert er niets: de switch is al exhaustive, en een overbodige <code>default</code> geeft geen fout of waarschuwing.</li>
+          <li>Bij het volgende subtype compileert deze switch gewoon door, en vind je hem pas als de exception in productie vliegt. Zonder de <code>default</code> was het een compileerfout geweest.</li>
+          <li>Het "vangnet" bestaat al: zonder <code>default</code> zet de compiler zelf een <code>MatchException</code>-tak neer voor het geval van aparte compilatie. Geen blocker, omdat er geen fout resultaat ontstaat (anders dan bij <code>default -&gt; Period.ofDays(2)</code>).</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>suggestion:</b> zou je deze <code>default</code> willen weghalen? De switch dekt alle subtypes al af, en met <code>default</code> wordt de volgende betaalmethode een runtime-exception in plaats van een compileerfout hier. Voor het geval dat een module niet opnieuw wordt gecompileerd, gooit Java zelf al een <code>MatchException</code>.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li><a href="https://openjdk.org/jeps/441">JEP 441: Pattern Matching for switch</a>: de secties "Dominance of case labels", "Exhaustiveness and sealed classes", "Switches and null" en "Errors" (waarom <code>MatchException</code> in plaats van <code>IncompatibleClassChangeError</code>).</li>
+    <li>Java Language Specification SE 25, <a href="https://docs.oracle.com/javase/specs/jls/se25/html/jls-14.html#jls-14.11.1.1">§14.11.1.1 Exhaustive Switch Blocks</a>, en §14.11.2 voor de regel dat alleen <i>enhanced</i> switch-statements exhaustive hoeven te zijn.</li>
+    <li>Brian Goetz, <a href="https://www.infoq.com/articles/data-oriented-programming-java/">Data Oriented Programming in Java</a> (InfoQ): records en sealed types als algebraïsche datatypes, en de sectie "It's not either/or" over wanneer je toch objectgeoriënteerd blijft. Sluit aan op F4 (functioneel ontwerp).</li>
+    <li>Refactoring.guru: <a href="https://refactoring.guru/replace-conditional-with-polymorphism">Replace Conditional with Polymorphism</a> en <a href="https://refactoring.guru/smells/speculative-generality">Speculative Generality</a>. Lees ze samen: de eerste is de refactoring, de tweede is wat er gebeurt als je hem toepast op iets dat niet groeit.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

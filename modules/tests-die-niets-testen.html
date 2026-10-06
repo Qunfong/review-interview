@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tests die niets testen · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module herken je een test die groen blijft bij een echte bug, toon je dat aan met een mutant, weet je wanneer verify() wél de goede assert is, en kies je tussen unit-test, slice-test en Testcontainers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="tests-die-niets-testen">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 5 · D4 Testen</p>
+  <h1>Tests die niets testen</h1>
+  <p class="lede">De refund-service heeft een test, de build is groen en de coverage-tool kleurt de methode helemaal groen. Toch kan een merchant op een betaling van €100 twee keer €80 terugboeken. De test controleerde dat er werd gebeld en opgeslagen, maar niet met welk bedrag.</p>
+  <div class="meta"><span><b>Tijd</b> 40 min</span><span><b>Stack</b> Java 25 · Spring Boot 4 (JUnit 6, Mockito 5, AssertJ)</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>Een test <b>herkennen</b> die groen blijft bij een echte bug, en dat <b>aantonen</b> met een concrete wijziging (een mutant) die de test laat overleven.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span><b>Uitleggen</b> wanneer <code>verify()</code> het gedrag test (een uitgaande opdracht aan de systeemgrens) en wanneer het alleen de implementatie vastlegt, en waarom zo'n test tegelijk te zwak en te breekbaar is.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span><b>Kiezen en verdedigen</b> tussen een unit-test met stubs of fakes, een slice-test (<code>@DataJpaTest</code>, <code>@WebMvcTest</code>) en <code>@SpringBootTest</code> met Testcontainers, op basis van waar de logica zit.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>Tijd- en timingproblemen in tests <b>herkennen</b> (<code>Instant.now()</code>, <code>LocalDate.now()</code>, <code>Thread.sleep</code>), <code>Clock</code> of Awaitility voorstellen, en de <b>zwaarte inschatten</b>, ook van overlevende mutanten.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Je test voert elke regel van een methode uit. Noem een bug die er toch doorheen komt.</li>
+      <li>Wat moet er in de code veranderen om <code>verify(refunds).save(any())</code> rood te krijgen? En welke fouten laat deze regel door?</li>
+      <li>Wat geeft een Mockito-mock terug voor een niet-gestubde methode met returntype <code>long</code>? En voor <code>Optional&lt;Payment&gt;</code>?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Een test vangt een bug alleen als drie dingen tegelijk waar zijn:</p>
+  <ol>
+    <li><b>Bereikt:</b> de test voert de foute code uit. Dit is het enige wat coverage meet.</li>
+    <li><b>Zichtbaar:</b> met de input van déze test geeft de foute code een andere uitkomst dan de goede code. Een refund van 80 op een betaling van 100 waarop nog niets is terugbetaald, geeft hetzelfde resultaat of je nu tegen het restbedrag controleert of tegen het oorspronkelijke bedrag. Het verschil zit bij de tweede refund, en die input zit niet in de test.</li>
+    <li><b>Gecontroleerd:</b> een assert vergelijkt die uitkomst met een <em>specifieke</em> verwachte waarde. <code>isNotNull()</code> en <code>verify(psp).refund(any(), anyLong(), any())</code> slagen voor elk bedrag.</li>
+  </ol>
+  <p>Mocks spelen bij stap 2 en 3 een eigen rol. Een <b>stub</b> (<code>when(...).thenReturn(...)</code>) is input die je zelf bepaalt. Wat je niet stubt, krijgt een standaardwaarde: <code>0</code> voor een <code>long</code>, <code>Optional.empty()</code> voor een <code>Optional</code>, een lege lijst voor een <code>List</code>. Als de logica in de gemockte methode zit, bijvoorbeeld een <code>sum</code>-query, test je die logica niet. Je test dan het getal dat je zelf hebt ingevuld, of de standaardwaarde 0. Een <b>verify</b> is een assert op een interactie: hij faalt als een aanroep verandert, niet als een waarde fout is. Daardoor is een test die vooral uit <code>verify(...)</code> bestaat tegelijk te zwak (een fout bedrag komt erdoor) en te breekbaar (een correcte refactoring die een andere repositorymethode aanroept, maakt hem rood).</p>
+  <p><b>Mutation testing</b> automatiseert stap 2 en 3. PIT (pitest) past de bytecode steeds op één plek aan: <code>&gt;</code> wordt <code>&gt;=</code>, <code>-</code> wordt <code>+</code>, een return wordt <code>null</code>, een void-aanroep verdwijnt. Daarna draait PIT alleen de tests die die regel raken. Faalt er een test, dan is de mutant <i>gedood</i>. Blijft alles groen, dan <i>overleeft</i> hij: op die plek kan het gedrag veranderen zonder dat een test het merkt. De mutation score is het percentage gedode mutanten. Anders dan line coverage meet die score ook of de asserts iets controleren.</p>
+  <figure>
+    <svg viewBox="0 0 400 646" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee delen. A: drie uitkomsten van refund() en wat twee tests ervan zien. Het teruggegeven Refund-object: de zwakke test ziet met isNotNull alleen dat er iets is, de sterke test controleert alle waarden. De aanroep naar de PSP: de zwakke test ziet met verify en any() alleen dat er gebeld is, de sterke test controleert het bedrag. De afwijzing bij een te hoog bedrag: de zwakke test lokt die nooit uit, de sterke test zet een bedrag één cent boven de rest. B: gemeten resultaat van negen hand-toegepaste mutanten. De zwakke test doodt 4 van de 7 PIT-standaardmutanten en geen van de twee realistische bugs; de sterke test doodt ze alle negen.</title>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:currentColor">A · drie uitkomsten, twee tests</text>
+      <text x="0" y="44" font-size="12" style="fill:var(--muted)">uitkomst van refund()</text>
+      <text x="224" y="44" font-size="12" text-anchor="middle" style="fill:var(--blocker)">zwakke test</text>
+      <text x="344" y="44" font-size="12" text-anchor="middle" style="fill:var(--ok)">sterke test</text>
+
+      <rect x="0" y="54" width="162" height="50" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="8" y="74" font-size="13" font-weight="600" style="fill:currentColor">teruggegeven Refund</text>
+      <text x="8" y="93" font-size="11" class="mono" style="fill:currentColor">bedrag · pspRef · tijd</text>
+      <rect x="170" y="54" width="108" height="50" rx="4" style="fill:none;stroke:var(--blocker)"/>
+      <text x="178" y="74" font-size="11" class="mono" style="fill:currentColor">isNotNull()</text>
+      <text x="178" y="93" font-size="11" style="fill:var(--blocker)">ziet: er is iets</text>
+      <rect x="286" y="54" width="114" height="50" rx="4" style="fill:none;stroke:var(--ok)"/>
+      <text x="294" y="74" font-size="11" class="mono" style="fill:currentColor">extracting(…)</text>
+      <text x="294" y="93" font-size="11" style="fill:var(--ok)">ziet: alle waarden</text>
+
+      <rect x="0" y="114" width="162" height="50" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="8" y="134" font-size="13" font-weight="600" style="fill:currentColor">aanroep naar de PSP</text>
+      <text x="8" y="153" font-size="11" class="mono" style="fill:currentColor">refund(…, 8000, …)</text>
+      <rect x="170" y="114" width="108" height="50" rx="4" style="fill:none;stroke:var(--blocker)"/>
+      <text x="178" y="134" font-size="11" class="mono" style="fill:currentColor">verify(any()…)</text>
+      <text x="178" y="153" font-size="11" style="fill:var(--blocker)">ziet: er is gebeld</text>
+      <rect x="286" y="114" width="114" height="50" rx="4" style="fill:none;stroke:var(--ok)"/>
+      <text x="294" y="134" font-size="11" style="fill:currentColor">exacte argumenten</text>
+      <text x="294" y="153" font-size="11" style="fill:var(--ok)">ziet: het bedrag</text>
+
+      <rect x="0" y="174" width="162" height="50" rx="4" style="fill:var(--accent-soft);stroke:currentColor"/>
+      <text x="8" y="194" font-size="13" font-weight="600" style="fill:currentColor">afwijzing</text>
+      <text x="8" y="213" font-size="11" class="mono" style="fill:currentColor">RefundExceedsRemaining</text>
+      <rect x="170" y="174" width="108" height="50" rx="4" style="fill:none;stroke:var(--blocker)"/>
+      <text x="178" y="194" font-size="11" class="mono" style="fill:currentColor">—</text>
+      <text x="178" y="213" font-size="12" style="fill:var(--blocker)">nooit uitgelokt</text>
+      <rect x="286" y="174" width="114" height="50" rx="4" style="fill:none;stroke:var(--ok)"/>
+      <text x="294" y="194" font-size="11" class="mono" style="fill:currentColor">rest + 1 cent</text>
+      <text x="294" y="213" font-size="11" style="fill:var(--ok)">ziet: de grens</text>
+
+      <text x="0" y="248" font-size="11" style="fill:var(--muted)">Ook na de fix: niet-gestubde sumRefunded() geeft 0, dus rest = bedrag.</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="290" font-size="15" font-weight="600" style="fill:currentColor">B · gemeten: 9 mutanten, twee tests</text>
+      <circle cx="5" cy="304" r="5" style="fill:var(--ok)"/>
+      <text x="14" y="308" font-size="11" style="fill:var(--muted)">gedood (test faalt)</text>
+      <circle cx="129" cy="304" r="5" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <text x="138" y="308" font-size="11" style="fill:var(--muted)">overleeft (test blijft groen)</text>
+      <text x="290" y="334" font-size="12" text-anchor="middle" style="fill:var(--blocker)">zwak</text>
+      <text x="360" y="334" font-size="12" text-anchor="middle" style="fill:var(--ok)">sterk</text>
+
+      <text x="0" y="358" font-size="11" class="mono" style="fill:currentColor">M1  bedrag &gt; rest  →  &gt;=</text>
+      <circle cx="290" cy="354" r="7" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <circle cx="360" cy="354" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="382" font-size="11" class="mono" style="fill:currentColor">M2  bedrag &gt; rest  →  &lt;=</text>
+      <circle cx="290" cy="378" r="7" style="fill:var(--ok)"/>
+      <circle cx="360" cy="378" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="406" font-size="11" class="mono" style="fill:currentColor">M3  rest: a - b  →  a + b</text>
+      <circle cx="290" cy="402" r="7" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <circle cx="360" cy="402" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="430" font-size="11" class="mono" style="fill:currentColor">M4  bedrag &lt;= 0  →  &lt; 0</text>
+      <circle cx="290" cy="426" r="7" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <circle cx="360" cy="426" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="454" font-size="11" class="mono" style="fill:currentColor">M5  bedrag &lt;= 0  →  &gt; 0</text>
+      <circle cx="290" cy="450" r="7" style="fill:var(--ok)"/>
+      <circle cx="360" cy="450" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="478" font-size="11" class="mono" style="fill:currentColor">M6  vensterscheck omgekeerd</text>
+      <circle cx="290" cy="474" r="7" style="fill:var(--ok)"/>
+      <circle cx="360" cy="474" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="502" font-size="11" class="mono" style="fill:currentColor">M7  return null</text>
+      <circle cx="290" cy="498" r="7" style="fill:var(--ok)"/>
+      <circle cx="360" cy="498" r="7" style="fill:var(--ok)"/>
+
+      <line x1="0" y1="516" x2="400" y2="516" style="stroke:var(--line)"/>
+      <text x="0" y="534" font-size="11" style="fill:var(--muted)">realistische bugs (geen PIT-standaardmutant)</text>
+      <text x="0" y="558" font-size="11" class="mono" style="fill:currentColor">R1  rest = betaalbedrag (de PR)</text>
+      <circle cx="290" cy="554" r="7" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <circle cx="360" cy="554" r="7" style="fill:var(--ok)"/>
+      <text x="0" y="582" font-size="11" class="mono" style="fill:currentColor">R2  PSP krijgt betaalbedrag</text>
+      <circle cx="290" cy="578" r="7" style="fill:none;stroke:var(--blocker);stroke-width:2"/>
+      <circle cx="360" cy="578" r="7" style="fill:var(--ok)"/>
+
+      <line x1="0" y1="594" x2="400" y2="594" style="stroke:var(--line)"/>
+      <text x="0" y="614" font-size="12" font-weight="600" style="fill:currentColor">M1–M7 gedood</text>
+      <text x="290" y="614" font-size="13" font-weight="600" text-anchor="middle" style="fill:var(--blocker)">4/7</text>
+      <text x="360" y="614" font-size="13" font-weight="600" text-anchor="middle" style="fill:var(--ok)">7/7</text>
+      <text x="200" y="640" font-size="10.5" text-anchor="middle" style="fill:var(--muted)">met de hand toegepast · JDK 25 · JUnit 6.0.3 · Mockito 5.23 · AssertJ 3.27</text>
+    </svg>
+    <figcaption>A: de zwakke test raakt alle drie de uitkomsten aan, maar controleert geen enkele waarde. B: de mutanten die hij laat leven (M1, M3, M4) zitten precies op de geldregels. De mutanten die hij wél doodt (M2, M5, M6) keren een hele conditie om. Zo'n mutant breekt elk happy path, dus dat hij sneuvelt zegt weinig over de test. De grensmutanten zeggen meer.</figcaption>
+  </figure>
+  <div class="callout"><p><b>Geverifieerd:</b> PIT stond niet lokaal. De mutanten zijn daarom met de hand toegepast, met dezelfde operatoren als PIT's standaardset (Conditionals Boundary, Negate Conditionals, Math, Null Returns). Daarna draaiden beide testklassen per mutant (Spring Boot 4.1.1-parent, JUnit Jupiter 6.0.3, Mockito 5.23.0, JDK 25). Let op: PIT's <i>Math</i>-mutator werkt op operatoren als <code>-</code> en <code>+</code>, niet op <code>BigDecimal.subtract()</code>. Een methode-aanroep vervangen valt onder een optionele mutator. Daarom rekent het voorbeeld in minor units (<code>long</code>-centen), zoals veel betaalsystemen doen.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>Een PR met de titel "Refunds: controle op restbedrag". Bedragen staan in centen. De auteur heeft er een test bij geschreven, en die is groen.</p>
+  <div class="diff">
+    <div class="diff-head">RefundService.java en RefundServiceTest.java</div>
+<pre><span class="a">+@Service</span><span class="a">+public class RefundService {</span><span class="a">+    private static final Duration REFUND_WINDOW = Duration.ofDays(180);</span><span class="a">+    private final PaymentRepository payments;</span><span class="a">+    private final RefundRepository refunds;</span><span class="a">+    private final PspClient psp;</span><span class="a">+    // constructor-injectie weggelaten</span><span class="a">+</span><span class="a">+    public Refund refund(UUID paymentId, long amountMinor) {</span><span class="a">+        var payment = payments.findById(paymentId).orElseThrow(() -&gt; new PaymentNotFound(paymentId));</span><span class="a">+        if (Instant.now().isAfter(payment.capturedAt().plus(REFUND_WINDOW))) {</span><span class="a">+            throw new RefundWindowClosed(paymentId);</span><span class="a">+        }</span><span class="a">+        if (amountMinor &gt; payment.amountMinor()) {                     // rest? nee: het oorspronkelijke bedrag</span><span class="a">+            throw new RefundExceedsRemaining(paymentId, amountMinor, payment.amountMinor());</span><span class="a">+        }</span><span class="a">+        var pspRef = psp.refund(payment.pspReference(), amountMinor, payment.currency());</span><span class="a">+        return refunds.save(Refund.of(paymentId, amountMinor, pspRef, Instant.now()));</span><span class="a">+    }</span><span class="a">+}</span><span></span><span class="a">+@ExtendWith(MockitoExtension.class)</span><span class="a">+class RefundServiceTest {</span><span class="a">+    @Mock PaymentRepository payments;</span><span class="a">+    @Mock RefundRepository refunds;</span><span class="a">+    @Mock PspClient psp;</span><span class="a">+    @InjectMocks RefundService service;</span><span class="a">+</span><span class="a">+    @Test</span><span class="a">+    void refund() {</span><span class="a">+        var payment = new Payment(ID, 10_000, "EUR", "psp-1", Instant.now().minus(Duration.ofDays(3)));</span><span class="a">+        when(payments.findById(ID)).thenReturn(Optional.of(payment));</span><span class="a">+        when(psp.refund(any(), anyLong(), any())).thenReturn("psp-r-1");</span><span class="a">+        when(refunds.save(any())).thenAnswer(inv -&gt; inv.getArgument(0));</span><span class="a">+</span><span class="a">+        var result = service.refund(ID, 8_000);</span><span class="a">+</span><span class="a">+        assertThat(result).isNotNull();</span><span class="a">+        verify(payments).findById(ID);</span><span class="a">+        verify(psp).refund(any(), anyLong(), any());</span><span class="a">+        verify(refunds).save(any());</span><span class="a">+    }</span><span class="a">+}</span></pre>
+  </div>
+  <p>Stap voor stap:</p>
+  <ol>
+    <li>De service controleert tegen <code>payment.amountMinor()</code> en niet tegen het restbedrag. Een eerste refund van €80 op €100 mag. Een tweede refund van €80 mag ook, want 8.000 is niet groter dan 10.000. De merchant boekt €160 terug op een betaling van €100, en de PSP voert beide uit.</li>
+    <li>De test doet één refund op een betaling zonder eerdere refunds. Met die input gedragen de foute en de goede versie zich gelijk. Ook in een gecorrigeerde versie die <code>refunds.sumRefunded(id)</code> aanroept, blijft deze test groen: die methode is niet gestubd en de mock geeft <code>0</code> terug. De mock maakt bug en fix voor deze test identiek.</li>
+    <li>Alle asserts slagen voor elk bedrag: <code>isNotNull()</code>, en drie keer <code>verify</code> met <code>any()</code>. Gemeten: de test blijft groen op de PR-versie. Ook R2 overleeft, een variant die de PSP het hele betaalbedrag laat terugboeken in plaats van de gevraagde €80.</li>
+    <li><code>Instant.now()</code> staat zowel in de service als in de test. Een test op de grens van het venster ("precies 180 dagen na capture mag nog") kun je zo niet betrouwbaar schrijven. Gemeten op deze Windows-machine: van 100.000 runs faalden er 133, omdat de klok tussen de twee <code>now()</code>-aanroepen net een tik verder ging. Dat is een flaky test die maar eens in de zoveel builds faalt.</li>
+  </ol>
+  <p>Coverage helpt hier niet: de test loopt de hele happy path door en elke regel met een <code>if</code> wordt uitgevoerd. Coverage meet stap 1 uit het mechanisme, en het probleem zit in stap 2 en 3.</p>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · Asserts op de uitkomst, inputs op de grens</h4>
+      <p>Houd de mocks, maar stub wat de logica nodig heeft (<code>sumRefunded</code> = 8.000) en test aan beide kanten van de grens: precies de rest mag, één cent meer niet. Controleer het teruggegeven object op waarden en de PSP-aanroep op exacte argumenten. Gemeten: doodt alle negen mutanten. <b>Prijs:</b> de test kent nog steeds de repository-API. Met Mockito's strict stubs (standaard in <code>MockitoExtension</code>) faalt hij met <code>UnnecessaryStubbingException</code> zodra een refactoring <code>sumRefunded</code> niet meer aanroept.</p>
+    </div>
+    <div>
+      <h4>B · Fakes in plaats van mocks voor je eigen opslag</h4>
+      <p>Een in-memory <code>RefundRepository</code> (een <code>Map</code> plus een som) in plaats van stubs. De test zet toestand neer ("er is al €80 terugbetaald") en controleert toestand achteraf ("er staan nu twee refunds van samen €100"). Zo'n test overleeft een refactoring van de aanroepen. <b>Prijs:</b> de fake moet je onderhouden, en de echte query test hij niet. Een fout in de JPQL van <code>sumRefunded</code> blijft onzichtbaar (zie vraag 3).</p>
+    </div>
+    <div>
+      <h4>C · De query tegen een echte database</h4>
+      <p>Zit de logica in een query, dan hoort de test bij de query: <code>@DataJpaTest</code> voor de repository, bij voorkeur op dezelfde database als productie via Testcontainers en <code>@ServiceConnection</code>. <b>Prijs:</b> seconden per testklasse en Docker in CI. H2 is sneller, maar test een ander SQL-dialect: native queries, locking en <code>jsonb</code> gedragen zich daar anders.</p>
+    </div>
+    <div>
+      <h4>D · Mutation testing als meetlat in CI</h4>
+      <p>PIT met <code>targetClasses</code> op het domeinpakket, of <code>scmMutationCoverage</code> voor alleen de gewijzigde code, met <code>withHistory</code> voor snelheid en eventueel een <code>mutationThreshold</code>. Voor JUnit Jupiter heb je de <code>pitest-junit5-plugin</code> nodig. Controleer bij Boot 4 (JUnit 6) dat PIT je tests echt vindt: "0 tests" betekent dat de plugin niet werkt, niet dat alles gedood is. <b>Prijs:</b> looptijd, en er zijn altijd mutanten die je niet hoeft te doden (zie hieronder).</p>
+    </div>
+  </div>
+  <div class="diff">
+    <div class="diff-head">Fix · RefundService.java (fragment) en RefundServiceTest.java (fix A)</div>
+<pre><span class="a">+    private final Clock clock;</span><span></span><span>    public Refund refund(UUID paymentId, long amountMinor) {</span><span class="a">+        if (amountMinor &lt;= 0) throw new IllegalArgumentException("amount must be positive");</span><span>        var payment = payments.findById(paymentId).orElseThrow(() -&gt; new PaymentNotFound(paymentId));</span><span class="d">-        if (Instant.now().isAfter(payment.capturedAt().plus(REFUND_WINDOW))) {</span><span class="a">+        var now = clock.instant();</span><span class="a">+        if (now.isAfter(payment.capturedAt().plus(REFUND_WINDOW))) {</span><span>            throw new RefundWindowClosed(paymentId);</span><span>        }</span><span class="a">+        long remaining = payment.amountMinor() - refunds.sumRefunded(paymentId);</span><span class="d">-        if (amountMinor &gt; payment.amountMinor()) {</span><span class="a">+        if (amountMinor &gt; remaining) {</span><span>        …</span><span></span><span>// RefundServiceTest</span><span class="a">+    static final Instant NOW = Instant.parse("2026-10-06T10:00:00Z");</span><span class="a">+    RefundService service;   // via de constructor, met Clock.fixed(NOW, ZoneOffset.UTC)</span><span class="a">+</span><span class="a">+    @Test</span><span class="a">+    void refunds_exactly_the_remaining_amount() {</span><span class="a">+        givenPayment(10_000, NOW.minus(Duration.ofDays(3)), /* already refunded */ 8_000);</span><span class="a">+        given(psp.refund("psp-1", 2_000, "EUR")).willReturn("psp-r-2");</span><span class="a">+        given(refunds.save(any())).will(returnsFirstArg());</span><span class="a">+</span><span class="a">+        assertThat(service.refund(ID, 2_000))</span><span class="a">+            .extracting(Refund::paymentId, Refund::amountMinor, Refund::pspReference, Refund::createdAt)</span><span class="a">+            .containsExactly(ID, 2_000L, "psp-r-2", NOW);</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    @Test</span><span class="a">+    void rejects_one_cent_above_remaining_and_moves_no_money() {</span><span class="a">+        givenPayment(10_000, NOW.minus(Duration.ofDays(3)), 8_000);</span><span class="a">+</span><span class="a">+        assertThatThrownBy(() -&gt; service.refund(ID, 2_001)).isInstanceOf(RefundExceedsRemaining.class);</span><span class="a">+        then(psp).shouldHaveNoInteractions();</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    // plus: precies 180 dagen mag, 180 dagen + 1 s niet; bedrag 0 wordt geweigerd</span></pre>
+  </div>
+  <p>Twee details. <code>Clock</code> komt als bean binnen (<code>@Bean Clock clock() { return Clock.systemUTC(); }</code>) en in de test als <code>Clock.fixed(...)</code> via de constructor. Laat <code>@InjectMocks</code> hier weg: Mockito vult een constructorparameter waarvoor het geen mock heeft gewoon met <code>null</code> (gemeten), en dan krijg je een <code>NullPointerException</code> in plaats van een duidelijke fout. En de testnamen beschrijven nu de regel (<i>rejects one cent above remaining</i>), niet de methode (<i>refund</i>). Faalt er een, dan weet je welke regel er brak.</p>
+  <p>Dit voorbeeld laat twee onderwerpen bewust liggen. Twee gelijktijdige refunds kunnen allebei dezelfde <code>sumRefunded</code> lezen; dat is een concurrency-vraag (lock of constraint). En een PSP-aanroep binnen een transactie houdt een connectie vast (<a href="transacties-en-proxies.html">module 1</a>).</p>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <ul>
+    <li><b><code>verify</code> op een uitgaande opdracht aan de systeemgrens.</b> "Er gaat geen geld naar de PSP als de refund wordt geweigerd" kun je nergens anders aan zien dan aan de aanroep. Daar is <code>then(psp).shouldHaveNoInteractions()</code> of <code>then(psp).should().refund("psp-1", 2_000, "EUR")</code> precies de goede assert. Het verschil met de zwakke test: exacte argumenten en een extern systeem, geen <code>any()</code> op je eigen repository.</li>
+    <li><b>Een mock of WireMock voor de externe betaalprovider</b>, ook in een <code>@SpringBootTest</code> (<code>@MockitoBean PspClient</code>; <code>@MockBean</code> bestaat in Boot 4 niet meer). Je wilt in CI geen echte refunds doen, en het contract met de PSP test je apart.</li>
+    <li><b><code>isNotNull()</code> als opstap</b> voor verdere asserts, of in een smoketest die alleen controleert of de context start. Het is pas een probleem als het de <em>enige</em> assert op logica is.</li>
+    <li><b>Mutanten die je laat leven:</b> equivalente mutanten (de wijziging verandert het gedrag niet, bijvoorbeeld <code>&lt;</code> → <code>&lt;=</code> op een lusgrens die nooit gelijk kan zijn), logregels, gegenereerde <code>toString</code>/<code>equals</code>. Een mutation score van 100% is geen doel. De vraag is of de overlevenden op regels zitten die geld, toegang of data bepalen.</li>
+    <li><b>H2 in plaats van Testcontainers</b> voor eenvoudige JPQL-CRUD in een team zonder Docker in CI. Pas bij native SQL, locking, <code>on conflict</code> of database-specifieke typen wordt het verschil een risico.</li>
+    <li><b><code>Instant.now()</code> voor een audit-tijdstempel</b> waar geen beslissing en geen test van afhangt. Hooguit een <span class="sev nit">nit</span>: het team kan beter overal <code>Clock</code> gebruiken.</li>
+  </ul>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> als de test de enige bewaker is van een regel die geld verplaatst of toegang geeft, en je een concrete overlevende bug kunt noemen · <span class="sev major">major</span> bij een test op bedrijfslogica die alleen uit <code>verify(any())</code> en <code>isNotNull()</code> bestaat, bij een deadline of venster dat op <code>now()</code> leunt, bij <code>Thread.sleep</code> in CI, en bij een gemockte repository waar de query de logica is · <span class="sev minor">minor</span> bij een testnaam die het gedrag niet beschrijft, of een extra <code>verify</code> naast goede asserts · laat gaan bij mocks aan de systeemgrens en overlevende mutanten op logging of gegenereerde code.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Deze test is niet zo sterk, te veel mocks. Kun je er nog wat asserts bij zetten?</p><p style="color:var(--muted);font-size:14px">Welke asserts? De auteur voegt <code>assertThat(result.amountMinor()).isEqualTo(8_000)</code> toe, en de bug op de restcontrole blijft staan. "Te veel mocks" is een smaakdiscussie zolang je niet laat zien wat erdoor glipt.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev blocker">issue (blocking)</span> Regel 14 controleert tegen het oorspronkelijke bedrag, niet tegen de rest. Twee refunds van €80 op €100 gaan allebei door. De test vangt dit niet: hij doet één refund zonder eerdere refunds, en de asserts (<code>isNotNull</code>, <code>verify(any())</code>) slagen voor elk bedrag. Ik heb het nagespeeld: de test blijft groen met de bug, en ook als de PSP het hele betaalbedrag krijgt.</p><p><b>Voorstel:</b> <code>remaining = amount - sumRefunded</code>, en twee tests op de grens: precies de rest mag, rest + 1 cent geeft <code>RefundExceedsRemaining</code> én <code>shouldHaveNoInteractions()</code> op de PSP. Injecteer een <code>Clock</code>, dan kun je ook de 180-dagengrens exact testen.</p></div>
+  </div>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: de PSP stuurt chargeback-webhooks; het endpoint antwoordt <code>202 Accepted</code> en verwerkt de melding <code>@Async</code>. De ledger-service leest <code>chargebacks.opened</code> en boekt het bedrag af van het saldo van de merchant. Chargebacks kunnen gedeeltelijk zijn. Kleine chargebacks verdedigen we niet: die accepteren we meteen.</p>
+  <div class="diff">
+    <div class="diff-head">PR #561 · Chargebacks uit PSP-webhooks verwerken, met tests</div>
+<pre><span><span class="ln">1</span>// ChargebackService.java (nieuw)</span><span class="a"><span class="ln">2</span>+@Service</span><span class="a"><span class="ln">3</span>+public class ChargebackService {</span><span class="a"><span class="ln">4</span>+    static final long AUTO_ACCEPT_BELOW_MINOR = 1_500;   // onder €15 niet verdedigen</span><span class="a"><span class="ln">5</span>+    private final PaymentRepository payments;</span><span class="a"><span class="ln">6</span>+    private final ChargebackRepository chargebacks;</span><span class="a"><span class="ln">7</span>+    private final KafkaTemplate&lt;String, ChargebackOpened&gt; kafka;</span><span class="a"><span class="ln">8</span>+    private final PspClient psp;</span><span class="a"><span class="ln">9</span>+    private final Clock clock;</span><span class="a"><span class="ln">10</span>+    // constructor-injectie weggelaten</span><span class="a"><span class="ln">11</span>+</span><span class="a"><span class="ln">12</span>+    @Transactional</span><span class="a"><span class="ln">13</span>+    public Chargeback open(ChargebackNotification n) {</span><span class="a"><span class="ln">14</span>+        var payment = payments.findByPspReference(n.pspReference()).orElseThrow();</span><span class="a"><span class="ln">15</span>+        var cb = chargebacks.save(new Chargeback(payment.id(), n.chargebackRef(),</span><span class="a"><span class="ln">16</span>+                payment.amountMinor(), n.reasonCode(), LocalDate.now().plusDays(7)));</span><span class="a"><span class="ln">17</span>+        kafka.send("chargebacks.opened", payment.id().toString(), new ChargebackOpened(cb.id(), cb.amountMinor()));</span><span class="a"><span class="ln">18</span>+        return cb;</span><span class="a"><span class="ln">19</span>+    }</span><span class="a"><span class="ln">20</span>+</span><span class="a"><span class="ln">21</span>+    public void autoAcceptIfSmall(Chargeback cb) {</span><span class="a"><span class="ln">22</span>+        if (cb.amountMinor() &lt; AUTO_ACCEPT_BELOW_MINOR) {</span><span class="a"><span class="ln">23</span>+            psp.acceptChargeback(cb.chargebackRef());</span><span class="a"><span class="ln">24</span>+        }</span><span class="a"><span class="ln">25</span>+    }</span><span class="a"><span class="ln">26</span>+}</span><span><span class="ln">27</span></span><span><span class="ln">28</span>// ChargebackServiceTest.java (nieuw)</span><span class="a"><span class="ln">29</span>+@ExtendWith(MockitoExtension.class)</span><span class="a"><span class="ln">30</span>+class ChargebackServiceTest {</span><span class="a"><span class="ln">31</span>+    @Mock PaymentRepository payments;</span><span class="a"><span class="ln">32</span>+    @Mock ChargebackRepository chargebacks;</span><span class="a"><span class="ln">33</span>+    @Mock KafkaTemplate&lt;String, ChargebackOpened&gt; kafka;</span><span class="a"><span class="ln">34</span>+    @Mock PspClient psp;</span><span class="a"><span class="ln">35</span>+    @InjectMocks ChargebackService service;</span><span class="a"><span class="ln">36</span>+</span><span class="a"><span class="ln">37</span>+    @Test</span><span class="a"><span class="ln">38</span>+    void open() {</span><span class="a"><span class="ln">39</span>+        when(payments.findByPspReference("psp-1")).thenReturn(Optional.of(PAYMENT_10_000));</span><span class="a"><span class="ln">40</span>+        when(chargebacks.save(any())).thenAnswer(inv -&gt; inv.getArgument(0));</span><span class="a"><span class="ln">41</span>+</span><span class="a"><span class="ln">42</span>+        var cb = service.open(new ChargebackNotification("psp-1", "cb-77", 4_500, "10.4"));</span><span class="a"><span class="ln">43</span>+</span><span class="a"><span class="ln">44</span>+        assertThat(cb).isNotNull();</span><span class="a"><span class="ln">45</span>+        assertThat(cb.respondBy()).isEqualTo(LocalDate.now().plusDays(7));</span><span class="a"><span class="ln">46</span>+        verify(chargebacks).save(any());</span><span class="a"><span class="ln">47</span>+        verify(kafka).send(eq("chargebacks.opened"), any(), any());</span><span class="a"><span class="ln">48</span>+    }</span><span class="a"><span class="ln">49</span>+</span><span class="a"><span class="ln">50</span>+    @Test</span><span class="a"><span class="ln">51</span>+    void accepts_chargeback_just_below_threshold() {</span><span class="a"><span class="ln">52</span>+        service.autoAcceptIfSmall(chargeback("cb-78", 1_499));</span><span class="a"><span class="ln">53</span>+        then(psp).should().acceptChargeback("cb-78");</span><span class="a"><span class="ln">54</span>+    }</span><span class="a"><span class="ln">55</span>+</span><span class="a"><span class="ln">56</span>+    @Test</span><span class="a"><span class="ln">57</span>+    void defends_chargeback_at_threshold() {</span><span class="a"><span class="ln">58</span>+        service.autoAcceptIfSmall(chargeback("cb-79", 1_500));</span><span class="a"><span class="ln">59</span>+        then(psp).shouldHaveNoInteractions();</span><span class="a"><span class="ln">60</span>+    }</span><span class="a"><span class="ln">61</span>+}</span><span><span class="ln">62</span></span><span><span class="ln">63</span>// ChargebackWebhookIT.java (nieuw)</span><span class="a"><span class="ln">64</span>+@SpringBootTest</span><span class="a"><span class="ln">65</span>+@AutoConfigureMockMvc</span><span class="a"><span class="ln">66</span>+@Testcontainers</span><span class="a"><span class="ln">67</span>+class ChargebackWebhookIT {</span><span class="a"><span class="ln">68</span>+    @Container @ServiceConnection</span><span class="a"><span class="ln">69</span>+    static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:17");</span><span class="a"><span class="ln">70</span>+    @MockitoBean PspClient psp;</span><span class="a"><span class="ln">71</span>+    @Autowired MockMvc mvc;</span><span class="a"><span class="ln">72</span>+    @Autowired ChargebackRepository chargebacks;</span><span class="a"><span class="ln">73</span>+</span><span class="a"><span class="ln">74</span>+    @Test</span><span class="a"><span class="ln">75</span>+    void webhook_stores_chargeback() throws Exception {</span><span class="a"><span class="ln">76</span>+        mvc.perform(post("/webhooks/psp").contentType(APPLICATION_JSON).content(CHARGEBACK_JSON))</span><span class="a"><span class="ln">77</span>+           .andExpect(status().isAccepted());</span><span class="a"><span class="ln">78</span>+        Thread.sleep(2_000);   // verwerking is @Async</span><span class="a"><span class="ln">79</span>+        assertThat(chargebacks.count()).isEqualTo(1);</span><span class="a"><span class="ln">80</span>+    }</span><span class="a"><span class="ln">81</span>+}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regel 16, met 42–46</b> <span class="sev blocker">blocker</span> De chargeback krijgt <code>payment.amountMinor()</code> als bedrag, niet <code>n.amountMinor()</code>. De notificatie-parameter <code>4_500</code> wordt nergens gebruikt. Een gedeeltelijke chargeback van €45 op een betaling van €100 wordt als €100 geboekt, en via het event op regel 17 haalt de ledger €100 van het saldo van de merchant. Tweede gevolg: <code>autoAcceptIfSmall</code> kijkt naar hetzelfde bedrag, dus een chargeback van €5 op een grote betaling wordt nooit automatisch geaccepteerd. De test <code>open()</code> geeft 4_500 mee, maar controleert het bedrag niet: <code>isNotNull()</code> en <code>verify(chargebacks).save(any())</code> slagen voor elke waarde. Dit is de kern van deze module. Comment: noem de bug én de reden dat de test hem niet vangt, en stel een assert voor op <code>cb.amountMinor()</code> (4_500) en op het bedrag in het event.</p>
+      <p><b>Regels 16 en 45</b> <span class="sev major">major</span> <code>LocalDate.now()</code>, terwijl er een <code>Clock</code> is geïnjecteerd (regel 9) die nergens wordt gebruikt. Drie problemen. (1) De test herhaalt de formule (<code>LocalDate.now().plusDays(7)</code>): als de regel "7 kalenderdagen" eigenlijk "10 werkdagen" moet zijn, past de auteur beide regels aan en blijft de test groen. Een test die de implementatie naspeelt, legt niets vast. (2) Draait de test rond middernacht, dan kunnen de twee <code>now()</code>-aanroepen op verschillende dagen vallen. (3) <code>LocalDate.now()</code> gebruikt de standaardtijdzone van de JVM: in een container is dat vaak UTC, voor de merchant Europe/Amsterdam. Voorstel: <code>LocalDate.now(clock)</code> met een expliciete zone, en in de test <code>Clock.fixed(...)</code> met een harde verwachte datum (<code>LocalDate.of(2026, 10, 13)</code>). Let op: <code>@InjectMocks</code> geeft de <code>Clock</code> nu <code>null</code> mee. Construeer de service in de test zelf.</p>
+      <p><b>Regel 17, met 47</b> <span class="sev major">major</span> <i>Uit <a href="dual-write-en-outbox.html">module 3</a>.</i> <code>kafka.send</code> binnen de <code>@Transactional</code>-methode is een dual write. Het event kan op de broker staan voordat de transactie commit. Faalt de commit daarna, dan boekt de ledger een chargeback af die niet bestaat (spookevent). Andersom blijft het record bestaan als de broker het bericht niet aanneemt: <code>send</code> is asynchroon, dus die fout bereikt deze transactie niet. Omdat de ledger op dit event geld afboekt, is <span class="sev blocker">blocker</span> ook te verdedigen. De test op regel 47 legt de dual write juist vast: hij controleert dát er verstuurd wordt, niet wanneer. Voorstel: outbox-record in dezelfde transactie, of minimaal <code>@TransactionalEventListener(AFTER_COMMIT)</code> met de afweging uit module 3. Test dan het outbox-record, niet de <code>send</code>.</p>
+      <p><b>Regel 78</b> <span class="sev major">major</span> <code>Thread.sleep(2_000)</code> om op <code>@Async</code> te wachten. Elke run kost twee seconden, ook als de verwerking na 50 ms klaar is. Op een drukke CI-agent kan de verwerking langer duren, en dan faalt de test af en toe. Voorstel: Awaitility, <code>await().atMost(Duration.ofSeconds(10)).untilAsserted(() -&gt; assertThat(chargebacks.count()).isEqualTo(1))</code>. Die stopt zodra de assert slaagt. Kijk ook wat de test níet doet: een webhook die twee keer binnenkomt (de PSP levert at-least-once) staat nergens in de test.</p>
+      <p><b>Regels 50–60 en 70</b> <span class="sev ok">geen probleem</span> De afleider. Hier is <code>verify</code> wél de goede assert: <code>acceptChargeback</code> is een opdracht aan een extern systeem, en het enige zichtbare gevolg is dat de aanroep er wel of niet is. De tests zitten precies op de grens (1_499 en 1_500), gebruiken exacte argumenten en hebben namen die de regel beschrijven. Ze doden de grensmutant op <code>&lt;</code>. <code>@MockitoBean PspClient</code> in de integratietest is een mock aan de systeemgrens, terwijl de database echt is (Postgres via Testcontainers). Dat is de goede verdeling. Een comment "geen mocks in een integratietest" kost je hier geloofwaardigheid.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · voorspellen</span></div>
+      <p class="situ">De zwakke test uit het voorbeeld (<code>verify(payments).findById(ID)</code>, <code>isNotNull()</code>) staat in de codebase. Er komen twee PR's binnen.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · lock tegen dubbele refunds</p>
+<pre class="snip">var payment = payments
+    .findByIdForUpdate(paymentId)
+    .orElseThrow(...);</pre></div>
+        <div><p class="snip-label">B · rest "vereenvoudigd"</p>
+<pre class="snip">long remaining =
+    payment.amountMinor();
+if (amountMinor &gt; remaining) ...</pre></div>
+      </div>
+      <p class="ask">Welke PR maakt de test rood?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">A, de verbetering. B, de bug, blijft groen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>A: <code>findByIdForUpdate</code> is niet gestubd, dus de mock geeft <code>Optional.empty()</code> (gemeten). De service gooit <code>PaymentNotFound</code> en de test faalt, terwijl het gedrag beter is geworden.</li>
+          <li>B: dit is R1 uit het diagram. Met 0 eerdere refunds is de rest gelijk aan het bedrag, en geen assert kijkt naar de waarde.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <ul><li>Een test die bij een refactoring faalt en bij een bug niet, kost onderhoud zonder bescherming te bieden. Dat is het sterkste argument in een comment, sterker dan "te veel mocks".</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · verify of niet</span></div>
+      <p class="situ">Twee <code>verify</code>-regels uit dezelfde testklasse.</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · happy path</p>
+<pre class="snip">service.refund(ID, 2_000);
+verify(refunds).save(any());</pre></div>
+        <div><p class="snip-label">B · weigering</p>
+<pre class="snip">assertThatThrownBy(() -&gt;
+    service.refund(ID, 2_001))
+  .isInstanceOf(RefundExceeds…);
+then(psp).shouldHaveNoInteractions();</pre></div>
+      </div>
+      <p class="ask">Welke van de twee test gedrag, en wat doe je met de andere?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">B test gedrag. A legt een implementatiedetail vast; vervang die door een assert op wat er is opgeslagen.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>B: "er gaat geen geld naar buiten" kun je alleen zien aan het ontbreken van de aanroep naar het externe systeem. Dat is een uitgaande opdracht aan de systeemgrens.</li>
+          <li>A: <code>save</code> op je eigen repository is een tussenstap. Met <code>any()</code> slaagt de regel voor een refund met elk bedrag. Controleer het teruggegeven object, of gebruik een <code>ArgumentCaptor</code> of een fake en controleer de opgeslagen <code>Refund</code> op bedrag en referentie.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Ook B is alleen sterk omdat hij op de grens zit (rest + 1 cent). Dezelfde regel met een refund van €1.000.000 doodt mutant M1 niet.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · kiezen</span></div>
+      <p class="situ">De fix uit het voorbeeld is gemerged. De repository ziet er zo uit; in de unit-test is <code>sumRefunded</code> gestubd op <code>8_000L</code>, en alles is groen.</p>
+<pre class="snip">@Query("select sum(r.amountMinor) from Refund r where r.paymentId = :paymentId")
+long sumRefunded(UUID paymentId);</pre>
+      <p class="ask">Wat gebeurt er bij de eerste refund op een betaling in productie, en welke test had het gevangen?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Een <code>AopInvocationException</code>: <code>sum</code> over nul rijen is <code>null</code>, en dat past niet in een <code>long</code>. Alleen een test tegen een echte database vangt dit.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>SQL <code>sum</code> over een lege set geeft <code>NULL</code>, niet 0. Spring Data kan <code>null</code> niet als primitieve <code>long</code> teruggeven. Gemeten met <code>@DataJpaTest</code> (Boot 4.1.1, H2): <i>Null return value from advice does not match primitive return type</i>.</li>
+          <li>Een Mockito-mock van dezelfde methode geeft <code>0</code> terug. Elke unit-test, ook een goede, ziet dus het "juiste" getal.</li>
+        </ul>
+        <p class="a-lbl">Beter</p>
+        <ul><li><code>coalesce(sum(r.amountMinor), 0)</code> (gemeten: 0), en een <code>@DataJpaTest</code> voor de query met drie gevallen: geen refunds, één refund, refunds van een andere betaling. Gebruik bij voorkeur Testcontainers met de productiedatabase. Vuistregel voor de review: zit de logica in de query, dan hoort de test bij de query.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 4 · tijd</span></div>
+      <p class="situ">Een collega voegt een grenstest toe aan de oorspronkelijke service, die nog <code>Instant.now()</code> gebruikt. Lokaal is hij groen; in CI faalt hij af en toe.</p>
+<pre class="snip">@Test
+void allows_refund_on_the_last_moment_of_the_window() {
+    var capturedAt = Instant.now().minus(Duration.ofDays(180));
+    givenPayment(10_000, capturedAt, 0);
+    assertThatCode(() -&gt; service.refund(ID, 100)).doesNotThrowAnyException();
+}</pre>
+      <p class="ask">Waarom faalt hij soms, en hoe maak je hem deterministisch?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">De service vraagt later opnieuw <code>Instant.now()</code>. Is de klok intussen een tik verder, dan ligt "nu" net voorbij het venster. Injecteer een <code>Clock</code> en test met <code>Clock.fixed</code>.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Hoe vaak het misgaat, hangt af van de resolutie van de systeemklok en de snelheid van de machine. Gemeten op een Windows-laptop: 133 van de 100.000 runs faalden. Op een andere machine kan dat veel vaker zijn. Daarom zie je het pas in CI.</li>
+          <li>Met <code>Clock.fixed(NOW, UTC)</code> in de service en <code>NOW.minus(REFUND_WINDOW)</code> in de test is de grens exact. Test beide kanten: precies 180 dagen mag, één seconde meer niet. Zo vang je ook het verschil tussen <code>now.isAfter(end)</code> en <code>!now.isBefore(end)</code>: grens inclusief of exclusief.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <ul><li>Een "flaky" test met <code>now()</code> erin is geen pech. Vraag om <code>Clock</code>, en niet om <code>@RetryingTest</code> of een marge van een minuut. Die verbergen het probleem.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">De auteur van een refund-PR plakt een PIT-rapport (vereenvoudigd) en schrijft: "Line coverage 100%, dus volgens mij zijn we goed."</p>
+<pre class="snip">RefundService.java
+  24  changed conditional boundary           SURVIVED
+  31  removed call to AuditLog::record       SURVIVED
+  40  replaced return value with "" (toString)  SURVIVED</pre>
+      <p class="ask">Op welke mutant zet je een comment, met welke zwaarte, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Regel 24 als <span class="sev major">major</span> (de restcontrole). Bij regel 31 een vraag, afhankelijk van of de audit verplicht is. Regel 40 laat je gaan.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>24: geen test raakt de grens van de bedragscontrole. Precies-de-rest en rest + 1 cent ontbreken.</li>
+          <li>31: is de audit-trail een compliance-eis, dan is een stil verdwenen <code>record</code> een echt risico, en is een test met een fake <code>AuditLog</code> op zijn plaats. Is het alleen een debug-spoor, dan niet.</li>
+          <li>40: een overlevende mutant op <code>toString</code> beschermt niemand. 100% mutation score is geen doel.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> PIT laat zien dat de grens van de restcontrole (r. 24) niet getest is: <code>&gt;</code> → <code>&gt;=</code> overleeft, dus een refund van precies het restbedrag kan stuk gaan zonder dat een test faalt. Kun je twee tests toevoegen: precies de rest (mag) en rest + 1 cent (weigert, en geen PSP-aanroep)? <b>question:</b> is <code>AuditLog.record</code> (r. 31) een compliance-eis? Dan wil ik er ook een test op.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>PIT, <a href="https://pitest.org/quickstart/mutators/">Mutation operators</a>: welke mutators in de standaardset zitten (Conditionals Boundary, Math, Negate Conditionals, Void Method Calls, de return-mutators) en welke optioneel zijn. Daarnaast <a href="https://pitest.org/quickstart/maven/">Maven quickstart</a> voor <code>scmMutationCoverage</code>, <code>withHistory</code> en <code>mutationThreshold</code>.</li>
+    <li>Spring Boot Reference, <a href="https://docs.spring.io/spring-boot/reference/testing/spring-boot-applications.html">Testing Spring Boot Applications</a>: de secties "Mocking and Spying Beans" (<code>@MockitoBean</code>) en "Auto-configured Tests" (slices zoals <code>@WebMvcTest</code> en <code>@DataJpaTest</code>).</li>
+    <li>Spring Boot Reference, <a href="https://docs.spring.io/spring-boot/reference/testing/testcontainers.html">Testcontainers</a>: <code>@ServiceConnection</code>, zodat een test de echte database gebruikt zonder handmatige configuratie.</li>
+    <li>Vladimir Khorikov, <a href="https://www.manning.com/books/unit-testing">Unit Testing Principles, Practices, and Patterns</a> (Manning): de hoofdstukken over mocks en testfragiliteit, en over observable behavior tegenover implementatiedetails. Daar komt het onderscheid tussen een uitgaande opdracht aan de systeemgrens en interne communicatie vandaan.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a> · Eerder: <a href="transacties-en-proxies.html">Transacties en proxies</a> (een gemockte repository verbergt de rollback-bug) · <a href="jpa-n-plus-1.html">JPA en N+1</a> (query's tellen in een test)</footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Interface met één implementatie · Leerplan Senior Java Reviewer</title>
+<meta name="description" content="Na deze module zie je in een diff of een interface met één implementatie een grens bewaakt of ceremonie is, weet je wat weghalen kost (inclusief de final-proxyval) en schrijf je een comment over afhankelijkheidsrichting in plaats van smaak.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,750&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Tokens gelijk aan index.html, zodat alle pagina's één geheel vormen */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --fg:#1a2030; --muted:#5a6275; --line:#dde1e8;
+  --accent:#3a3f9a; --accent-soft:#e8e9f7;
+  --blocker:#b42318; --major:#b54708; --minor:#1f5fa8; --nit:#6b7280; --ok:#1a7f37;
+  --add:#e6f4ea; --del:#fdecea; --code-bg:#f0f2f6;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12151d; --surface:#1a1e29; --fg:#e4e7ef; --muted:#9aa2b5; --line:#2c3242;
+  --accent:#9ea4ff; --accent-soft:#252a45;
+  --blocker:#ff8a80; --major:#ffb366; --minor:#7fb4ff; --nit:#a3aab8; --ok:#6fdd8b;
+  --add:#173323; --del:#3a1d1b; --code-bg:#20242f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:17px;line-height:1.6;padding:0 16px}
+main{max-width:820px;margin:0 auto;padding-block:40px 80px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(32px,5vw,46px);font-weight:750;letter-spacing:-.02em}
+h2{font-size:26px;font-weight:750;margin-top:56px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:19px;font-weight:600;margin-top:28px}
+p,li{max-width:70ch}
+a{color:var(--accent)}
+code{font-family:var(--f-mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.back{font-family:var(--f-mono);font-size:13px;text-decoration:none}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:20px 0 10px}
+.lede{font-size:20px;color:var(--muted);margin:14px 0 0}
+.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:18px;font-size:14px;color:var(--muted)}
+.meta b{color:var(--fg)}
+
+.goals{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:8px}
+.goals label{display:flex;gap:12px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer}
+.goals input{margin-top:5px;accent-color:var(--accent);width:18px;height:18px;flex:none}
+.goals input:checked + span{color:var(--muted);text-decoration:line-through}
+.progress{margin-top:10px;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+
+figure{margin:24px 0 0;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+figure svg{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;color:var(--fg);font-family:var(--f-body)}
+figure svg .mono{font-family:var(--f-mono)}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px}
+
+.diff{margin-top:20px;background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.diff-head{font-family:var(--f-mono);font-size:12px;padding:8px 14px;border-bottom:1px solid var(--line);color:var(--muted)}
+.diff pre{margin:0;padding:10px 0;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto}
+.diff pre span{display:block;padding:0 14px;white-space:pre}
+.diff pre span.ln{display:inline-block;padding:0}
+.diff .a{background:var(--add)} .diff .d{background:var(--del)}
+.diff .ln{color:var(--muted);user-select:none;display:inline-block;width:2.5em}
+
+.sev{font-family:var(--f-mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;display:inline-block}
+.sev.blocker{color:var(--blocker)} .sev.major{color:var(--major)} .sev.minor{color:var(--minor)} .sev.nit{color:var(--nit)} .sev.ok{color:var(--ok)}
+
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:20px}
+.compare > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.compare h4{margin:0 0 8px;font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.compare .bad h4{color:var(--blocker)} .compare .good h4{color:var(--ok)}
+.compare p{margin:0 0 8px;font-size:15px}
+.compare p:last-child{margin-bottom:0}
+
+.callout{margin-top:20px;padding:14px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 8px 8px 0}
+.callout p{margin:0}
+.callout ol{margin:6px 0 0;padding-left:22px}
+
+.fixes{display:grid;gap:12px;margin-top:16px}
+.fixes > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.fixes h4{margin:0 0 4px;font-family:var(--f-display);font-size:17px}
+.fixes p{margin:0;font-size:15px}
+
+details.answer{margin-top:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.answer summary{cursor:pointer;padding:12px 16px;font-weight:600}
+details.answer summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.answer > div{padding:0 16px 14px}
+details.answer > div p{margin:10px 0 0}
+.quiz-intro{margin:12px 0 0}
+.quiz{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:16px;counter-reset:q}
+.qcard{max-width:none;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px 6px}
+.qhead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.qnum{font-family:var(--f-mono);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.goal-chip{font-family:var(--f-mono);font-size:11px;padding:2px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.qcard .situ{margin:10px 0 0}
+.qcard .ask{margin:12px 0 0;font-weight:600;font-size:18px;line-height:1.4}
+.snip{margin:10px 0 0;background:var(--code-bg);border-radius:6px;padding:10px 12px;font-family:var(--f-mono);font-size:13px;line-height:1.55;overflow-x:auto;white-space:pre}
+.snip-pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px;margin-top:10px}
+.snip-pair > div{min-width:0}
+.snip-pair .snip{margin:0}
+.snip-label{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin:0 0 4px}
+.qcard details.answer{border-style:dashed;margin:14px 0 10px}
+.qcard details.answer[open]{border-style:solid}
+.a-short{font-weight:600;margin:10px 0 0}
+.a-lbl{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 4px}
+.qcard details.answer ul{margin:0;padding-left:20px}
+.qcard details.answer li{margin:3px 0;font-size:16px}
+.review-note{margin:0;padding:10px 14px;border-left:3px solid var(--ok);background:var(--bg);border-radius:0 6px 6px 0;font-size:15px}
+footer{margin-top:56px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main data-module="interface-met-een-implementatie">
+<a class="back" href="../index.html">← Leerplan</a>
+
+<!-- 1. Kop en leerdoelen -->
+<header>
+  <p class="eyebrow">Module 6a · D3 Ontwerpprincipes</p>
+  <h1>Interface met één implementatie</h1>
+  <p class="lede">Wie elk <code>XService</code>/<code>XServiceImpl</code>-paar afschiet, verspeelt krediet. Wie ze allemaal doorlaat, mist de ene interface die het SDK van de betaalprovider uit het domein had moeten houden. En wie op jouw advies de interface weghaalt en de class <code>final</code> maakt, krijgt een context die niet start, of erger: een <code>NullPointerException</code> pas bij de eerste echte aanroep.</p>
+  <div class="meta"><span><b>Tijd</b> 40 min</span><span><b>Stack</b> Java 25 · Spring Boot 4 (Framework 7)</span><span><b>Bouwt op</b> <a href="transacties-en-proxies.html">module 1</a> (proxies)</span></div>
+</header>
+
+<section id="doelen">
+  <h2>Na deze module kun je</h2>
+  <ul class="goals">
+    <li><label><input type="checkbox" data-goal="1"><span>In een diff een <b>header-interface</b> (spiegel van één implementatie) <b>onderscheiden</b> van een <b>port</b> (contract van de gebruiker), aan drie signalen: wie is eigenaar, in welk pakket staat hij, welke typen staan in de signatuur.</span></label></li>
+    <li><label><input type="checkbox" data-goal="2"><span><b>Uitleggen</b> waarom een port met één implementatie geen YAGNI-schending is, en waarom "nodig voor <code>@Transactional</code>" en "nodig om te mocken" in Spring Boot 4 geen argumenten meer zijn.</span></label></li>
+    <li><label><input type="checkbox" data-goal="3"><span><b>Voorspellen</b> wat weghalen kost: een refactoring van een minuut, of een context die niet start en een NPE zonder transactie (<code>final</code>, JDK-proxies), en daarop <b>kiezen</b> tussen weghalen, verplaatsen naar de consument en laten staan.</span></label></li>
+    <li><label><input type="checkbox" data-goal="4"><span>De <b>zwaarte inschatten</b> en een comment schrijven die over afhankelijkheidsrichting gaat, niet over smaak.</span></label></li>
+  </ul>
+  <p class="progress" aria-live="polite"></p>
+  <div class="callout"><p><b>Eerst zelf:</b> beantwoord deze drie vragen in je hoofd voordat je verder leest.</p>
+    <ol>
+      <li>Welk soort proxy maakt Spring Boot standaard voor een <code>@Transactional</code>-bean die een interface implementeert: een JDK dynamic proxy of een CGLIB-subclass?</li>
+      <li>Kan Mockito 5 een concrete <code>final</code> class mocken zonder extra configuratie?</li>
+      <li><code>PaymentGateway</code> heeft één implementatie, <code>AdyenPaymentGateway</code>. Hoort de interface in het pakket van de service die hem aanroept, of naast de implementatie? Waarom maakt dat uit?</li>
+    </ol>
+  </div>
+</section>
+
+<!-- 2. Mechanisme -->
+<section id="mechanisme">
+  <h2>Wat er onder de motorkap gebeurt</h2>
+  <p>Een interface kost iets: elke signatuurwijziging raakt twee bestanden, "Go to declaration" landt op de interface in plaats van op de code, en de lezer moet uitzoeken welke implementatie actief is. Wat hij oplevert hangt <b>niet</b> af van het aantal implementaties, maar van wie hem bezit en welke kant de afhankelijkheid op wijst.</p>
+
+  <h3>Drie historische redenen, en wat er van over is</h3>
+  <div class="fixes">
+    <div>
+      <h4>Proxies voor <code>@Transactional</code>, <code>@Async</code>, <code>@Cacheable</code>: vervallen</h4>
+      <p>JDK dynamic proxies kunnen alleen interfaces implementeren; in oude Spring-configuraties kreeg een bean zonder interface daarom geen proxy. Spring Boot zet <code>spring.aop.proxy-target-class</code> standaard op <code>true</code>: Spring maakt een CGLIB-<b>subclass</b> van je bean, óók als die een interface implementeert. Een bean zonder interfaces krijgt sowieso een CGLIB-proxy.</p>
+    </div>
+    <div>
+      <h4>Mocken in tests: vervallen</h4>
+      <p>Mockito 5 gebruikt standaard de inline mock maker en mockt concrete en zelfs <code>final</code> classes. <code>@MockitoBean</code> (in Boot 4 de vervanger van het verwijderde <code>@MockBean</code>) werkt op een class net zo goed als op een interface.</p>
+    </div>
+    <div>
+      <h4>Afhankelijkheidsrichting (dependency inversion): volledig geldig</h4>
+      <p>De gebruiker (het domein) definieert wat hij nodig heeft, in zijn eigen taal; een adapter aan de rand implementeert dat. Dit is de enige reden die van de structuur van je code afhangt in plaats van van tooling, en hij werkt <b>alleen</b> als de interface aan de kant van de gebruiker staat.</p>
+    </div>
+  </div>
+  <p>Een interface die naast zijn enige implementatie staat, met dezelfde methodes en dezelfde eigenaar, keert geen afhankelijkheid om. Dat is een <em>header-interface</em>: een C-headerbestand in Java-vorm. Een interface die de gebruiker bezit, in zijn eigen pakket en met zijn eigen typen, is een <em>port</em>. Die heeft vaak precies één implementatie, en terecht.</p>
+
+  <figure>
+    <svg viewBox="0 0 400 648" role="img" aria-labelledby="fig1-title">
+      <title id="fig1-title">Twee situaties met elk één implementatie. A, header-interface: controller, interface InvoiceService en InvoiceServiceImpl staan in één pakket; implements wijst naar een buur en er wordt geen grens overgestoken. B, port: de interface PaymentGateway staat in het domeinpakket naast RefundService die hem aanroept; AdyenPaymentGateway in het adapterpakket implementeert hem, zodat de afhankelijkheid over de pakketgrens naar het domein wijst en de SDK buiten het domein blijft.</title>
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:currentColor"/></marker>
+        <marker id="tri" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1,1 L11,6 L1,11 z" style="fill:var(--surface);stroke:currentColor;stroke-width:1.2"/></marker>
+        <marker id="tri-acc" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse"><path d="M1,1 L11,6 L1,11 z" style="fill:var(--surface);stroke:var(--accent);stroke-width:1.4"/></marker>
+      </defs>
+
+      <!-- Paneel A -->
+      <text x="0" y="16" font-size="15" font-weight="600" style="fill:var(--major)">A · Header-interface: geen grens</text>
+      <rect x="0" y="30" width="400" height="236" rx="8" style="fill:none;stroke:var(--muted);stroke-dasharray:5 4"/>
+      <text x="12" y="50" font-size="12" class="mono" style="fill:var(--muted)">com.shop.invoice</text>
+
+      <rect x="110" y="62" width="180" height="36" rx="6" style="fill:none;stroke:currentColor"/>
+      <text x="200" y="85" font-size="13" text-anchor="middle" style="fill:currentColor">InvoiceController</text>
+      <line x1="200" y1="98" x2="200" y2="126" style="stroke:currentColor;stroke-width:1.4" marker-end="url(#arr)"/>
+      <text x="210" y="117" font-size="12" style="fill:currentColor">roept aan</text>
+
+      <rect x="110" y="128" width="180" height="48" rx="6" style="fill:none;stroke:currentColor"/>
+      <text x="200" y="146" font-size="11" text-anchor="middle" style="fill:var(--muted)">«interface»</text>
+      <text x="200" y="166" font-size="13" text-anchor="middle" style="fill:currentColor">InvoiceService</text>
+
+      <line x1="200" y1="214" x2="200" y2="178" style="stroke:currentColor;stroke-width:1.4" marker-end="url(#tri)"/>
+      <text x="210" y="201" font-size="12" style="fill:currentColor">implements</text>
+      <rect x="110" y="214" width="180" height="36" rx="6" style="fill:none;stroke:currentColor"/>
+      <text x="200" y="237" font-size="13" text-anchor="middle" style="fill:currentColor">InvoiceServiceImpl</text>
+
+      <text x="200" y="290" font-size="12" text-anchor="middle" style="fill:var(--muted)">één pakket, één eigenaar: alles wijzigt samen</text>
+
+      <!-- Paneel B -->
+      <text x="0" y="336" font-size="15" font-weight="600" style="fill:var(--ok)">B · Port bij de gebruiker: wel een grens</text>
+      <rect x="0" y="350" width="400" height="96" rx="8" style="fill:none;stroke:var(--muted);stroke-dasharray:5 4"/>
+      <text x="12" y="370" font-size="12" class="mono" style="fill:var(--muted)">com.shop.payment (domein)</text>
+      <rect x="12" y="386" width="150" height="40" rx="6" style="fill:none;stroke:currentColor"/>
+      <text x="87" y="411" font-size="13" text-anchor="middle" style="fill:currentColor">RefundService</text>
+      <line x1="162" y1="406" x2="226" y2="406" style="stroke:currentColor;stroke-width:1.4" marker-end="url(#arr)"/>
+      <text x="194" y="398" font-size="11" text-anchor="middle" style="fill:currentColor">roept aan</text>
+      <rect x="228" y="380" width="160" height="52" rx="6" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.6"/>
+      <text x="308" y="400" font-size="11" text-anchor="middle" style="fill:var(--muted)">«interface»</text>
+      <text x="308" y="420" font-size="13" text-anchor="middle" style="fill:currentColor">PaymentGateway</text>
+
+      <rect x="0" y="514" width="400" height="96" rx="8" style="fill:none;stroke:var(--muted);stroke-dasharray:5 4"/>
+      <text x="12" y="534" font-size="12" class="mono" style="fill:var(--muted)">com.shop.payment.adyen (adapter)</text>
+      <rect x="12" y="552" width="150" height="40" rx="6" style="fill:none;stroke:currentColor;stroke-dasharray:2 2"/>
+      <text x="87" y="577" font-size="13" text-anchor="middle" style="fill:currentColor">SDK van de PSP</text>
+      <rect x="228" y="552" width="160" height="40" rx="6" style="fill:none;stroke:currentColor"/>
+      <text x="308" y="577" font-size="12" text-anchor="middle" style="fill:currentColor">AdyenPaymentGateway</text>
+      <line x1="228" y1="572" x2="164" y2="572" style="stroke:currentColor;stroke-width:1.4" marker-end="url(#arr)"/>
+      <text x="194" y="565" font-size="11" text-anchor="middle" style="fill:currentColor">roept aan</text>
+
+      <line x1="308" y1="552" x2="308" y2="434" style="stroke:var(--accent);stroke-width:2" marker-end="url(#tri-acc)"/>
+      <text x="300" y="478" font-size="12" font-weight="600" text-anchor="end" style="fill:var(--accent)">implements,</text>
+      <text x="300" y="494" font-size="12" text-anchor="end" style="fill:var(--accent)">over de pakketgrens</text>
+      <text x="300" y="510" font-size="12" text-anchor="end" style="fill:var(--accent)">naar het domein toe</text>
+
+      <text x="200" y="636" font-size="12" text-anchor="middle" style="fill:var(--muted)">het domein compileert zonder de SDK op het classpath</text>
+    </svg>
+    <figcaption>Beide hebben precies één implementatie. In A wijst <code>implements</code> naar een buur in hetzelfde pakket: er wordt niets afgeschermd. In B steekt <code>implements</code> een pakketgrens over, naar het domein toe: SDK-typen en -exceptions blijven in de adapter, en een andere provider is een nieuwe adapter in plaats van een wijziging in <code>RefundService</code>.</figcaption>
+  </figure>
+
+  <h3>Wat de proxy doet als de interface verdwijnt</h3>
+  <p>Zonder interface (en met de Boot-default ook mét) maakt Spring een runtime-subclass van je bean die de geadviseerde methodes overschrijft en de transactie-interceptor ervoor zet. Die proxy-instantie wordt aangemaakt zonder je constructor te draaien, dus <b>de velden van de proxy zelf zijn <code>null</code></b>; hij delegeert naar het echte object. Dat is precies wat misgaat bij "interface weg, en dan netjes <code>final</code> erop":</p>
+  <ul>
+    <li><b><code>final</code> class:</b> CGLIB kan geen subclass maken. De context start niet: <code>BeanCreationException … Could not generate CGLIB subclass of class …: Common causes of this problem include using a final class or a non-visible class</code>. Luid, maar wel een kapotte build.</li>
+    <li><b><code>final</code> methode:</b> de subclass kan die methode niet overschrijven. De context start gewoon; Spring logt alleen een <code>WARN</code>: <i>Public final method […] cannot get proxied via CGLIB</i>. De aanroep draait op de proxy-instantie zelf, waar de repository <code>null</code> is: <code>NullPointerException</code> bij de eerste echte aanroep, en er is nooit een transactie gestart. Dit is dezelfde val als in <a href="transacties-en-proxies.html">module 1</a>, nu veroorzaakt door een ontwerpcomment.</li>
+  </ul>
+  <p>Performance is geen argument, in geen van beide richtingen: een interface-aanroep met maar één geladen implementatie kan de JIT devirtualiseren en inlinen.</p>
+  <div class="callout"><p><b>Geverifieerd:</b> de proxyclaims in deze module zijn nagespeeld met Spring Boot 4.1.1 (Framework 7.0.9, Mockito 5.23) op JDK 25: CGLIB-proxy ook mét interface, <code>BeanCreationException</code> bij een <code>final</code> class, <code>WARN</code> plus NPE zonder transactie bij een <code>final</code> methode, en <code>mock()</code> van een <code>final</code> class zonder configuratie.</p></div>
+</section>
+
+<!-- 3. Fout → fix -->
+<section id="voorbeeld">
+  <h2>Uitgewerkt voorbeeld</h2>
+  <p>Een PR voegt facturatie toe. De beschrijving zegt: <i>"InvoiceService als interface, nodig voor @Transactional en om te kunnen mocken in de controllertest."</i></p>
+  <div class="diff">
+    <div class="diff-head">invoice/InvoiceService.java + InvoiceServiceImpl.java (nieuw)</div>
+<pre><span class="a">+package com.shop.invoice;</span><span class="a">+</span><span class="a">+public interface InvoiceService {</span><span class="a">+    Invoice issue(OrderId orderId);</span><span class="a">+}</span><span class="a">+</span><span class="a">+@Service</span><span class="a">+public class InvoiceServiceImpl implements InvoiceService {</span><span class="a">+</span><span class="a">+    private final OrderRepository orders;</span><span class="a">+    private final InvoiceRepository invoices;</span><span class="a">+    private final Clock clock;</span><span class="a">+</span><span class="a">+    public InvoiceServiceImpl(OrderRepository orders, InvoiceRepository invoices, Clock clock) {</span><span class="a">+        this.orders = orders;</span><span class="a">+        this.invoices = invoices;</span><span class="a">+        this.clock = clock;</span><span class="a">+    }</span><span class="a">+</span><span class="a">+    @Override</span><span class="a">+    @Transactional</span><span class="a">+    public Invoice issue(OrderId orderId) {</span><span class="a">+        var order = orders.findById(orderId)</span><span class="a">+                .orElseThrow(() -&gt; new OrderNotFoundException(orderId));</span><span class="a">+        var invoice = order.invoice(clock.instant());   // gooit als de order al gefactureerd is</span><span class="a">+        return invoices.save(invoice);</span><span class="a">+    }</span><span class="a">+}</span></pre>
+  </div>
+  <p>Er gaat hier vandaag niets mis, en dat is precies waarom deze discussie zo vaak op smaak uitdraait. Toets de twee genoemde redenen: <code>@Transactional</code> werkt met de CGLIB-default ook op de class zelf, en <code>@MockitoBean InvoiceService</code> werkt ook als <code>InvoiceService</code> een class is. De interface staat in hetzelfde pakket als zijn implementatie, heeft dezelfde eigenaar en één aanroeper. Situatie A uit het diagram.</p>
+  <p>De echte bug ontstaat in de volgende commit, als de auteur jouw comment opvolgt en het "goed" wil doen. Hij kent <i>Effective Java</i> (item 19: ontwerp en documenteer voor overerving, of verbied het) en maakt de class <code>final</code>:</p>
+  <div class="diff">
+    <div class="diff-head">Na review · interface weggehaald</div>
+<pre><span class="d">-public interface InvoiceService {</span><span class="d">-    Invoice issue(OrderId orderId);</span><span class="d">-}</span><span class="d">-</span><span> @Service</span><span class="d">-public class InvoiceServiceImpl implements InvoiceService {</span><span class="a">+public final class InvoiceService {</span><span>     …</span><span class="d">-    @Override</span><span>     @Transactional</span><span>     public Invoice issue(OrderId orderId) {</span></pre>
+  </div>
+  <p>Stap voor stap:</p>
+  <ol>
+    <li>Bij het opstarten ziet Spring een <code>@Transactional</code>-methode en wil een CGLIB-subclass maken.</li>
+    <li>De class is <code>final</code>: <code>BeanCreationException</code>, de applicatie start niet. Vervelend, maar je ziet het in de PR-build.</li>
+    <li>Gevaarlijker is de halve variant: alleen de methode <code>final</code> (<code>public final Invoice issue(…)</code>). Alles start, met één <code>WARN</code> in de log. Bij het eerste factuurverzoek draait <code>issue</code> op de proxy-instantie: NPE op <code>orders</code>, zonder transactie.</li>
+    <li>Een <code>@WebMvcTest</code> met <code>@MockitoBean InvoiceService</code> en een unit-test met <code>new InvoiceService(…)</code> zijn allebei groen. Alleen een test die de echte bean uit de context aanroept, vangt het.</li>
+  </ol>
+
+  <h3>Oplossingen en hun prijs</h3>
+  <div class="fixes">
+    <div>
+      <h4>A · Interface weg, class niet <code>final</code></h4>
+      <p>Hernoem <code>InvoiceServiceImpl</code> naar <code>InvoiceService</code>. Niet <code>final</code>, want hij wordt geproxied. <b>Prijs:</b> geen, zolang alles in één deploybare eenheid zit. Komt er ooit een echte tweede implementatie, dan is <i>Extract Interface</i> een refactoring van een minuut. Standaardkeuze voor nieuwe code.</p>
+    </div>
+    <div>
+      <h4>B · Interface naar de gebruiker</h4>
+      <p>Alleen als er echt een grens is: zet de interface in het pakket of de module van de aanroeper, in diens taal, en maak de implementatie package-private of intern. <b>Prijs:</b> een extra bestand en indirectie. Alleen de moeite waard als die grens bewaakt wordt (Spring Modulith, ArchUnit) of een extern systeem afschermt.</p>
+    </div>
+    <div>
+      <h4>C · Laten staan</h4>
+      <p>Gebruikt de hele codebase <code>Interface + Impl</code>, dan is één afwijkende service duurder dan honderd consistente. <b>Prijs:</b> de ceremonie blijft. Zet het op de teamagenda in plaats van het in deze PR uit te vechten.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Afweging -->
+<section id="afweging">
+  <h2>Wanneer het géén probleem is</h2>
+  <p>"Eén implementatie" is de verkeerde maat. Vraag: <b>wat zou er moeten veranderen als deze interface er niet was?</b> Is het antwoord "niets", dan is het ceremonie. In deze gevallen is het antwoord iets anders:</p>
+  <ul>
+    <li><b>Port naar een extern systeem</b> (betaalprovider, vervoerder, e-mail). De interface houdt SDK-typen en -exceptions buiten het domein, ook als er nooit een tweede provider komt. Het argument is niet "we gaan wisselen" maar "SDK-wijzigingen blijven aan de rand". Daarom is dit geen YAGNI: de interface lost een probleem van vandaag op. Voorwaarde: de signatuur bevat domeintypen (<code>Money</code>, <code>PspReference</code>), geen SDK-klassen.</li>
+    <li><b>Publieke API van een module.</b> In Spring Modulith is het basispakket van een module de API en zijn subpakketten intern. Een interface in de API met een implementatie in <code>…internal</code> is een bewaakte grens.</li>
+    <li><b>Library of SPI.</b> Code voor gebruikers die jij niet kent (<code>ServiceLoader</code>, een gedeelde starter). Zij kunnen geen <i>Extract Interface</i> doen; daar is de interface het contract.</li>
+    <li><b>Test-seam voor iets niet-deterministisch:</b> tijd, ID-generatie, een externe dienst. Een in-memory fake in je tests is een <em>tweede implementatie</em>. <code>java.time.Clock</code> is het schoolvoorbeeld (een abstracte class: het gaat om de seam, niet om het keyword).</li>
+    <li><b>Door het framework geïmplementeerd.</b> Spring Data-repositories en <code>@HttpExchange</code>-clients hebben nul handgeschreven implementaties. Geen discussie.</li>
+    <li><b>Bewust gekozen JDK-proxies</b> (<code>spring.aop.proxy-target-class=false</code>). Zeldzaam, maar dan zijn de interfaces wél functioneel. Vraag het voordat je weghalen voorstelt.</li>
+  </ul>
+  <p>Omgekeerd is het grotere probleem vaak een <b>ontbrekende</b> port: een domeinservice die direct een SDK-client injecteert en SDK-typen teruggeeft, of een "port" waarvan de signatuur JPA-entities of HTTP-typen (<code>ResponseEntity</code>) lekt. Dat zie je in een diff aan imports als <code>com.adyen…</code> of <code>org.springframework.http…</code> in een pakket dat <code>domain</code> of <code>payment</code> heet.</p>
+  <div class="callout"><p><b>Zwaarte:</b> <span class="sev blocker">blocker</span> nooit voor de interface zelf, wel voor de bijwerking van het weghalen: <code>final</code> op een geproxiede class of methode · <span class="sev major">major</span> als een interface een grens claimt maar vendortypen doorlaat op een plek waar de leverancier of zijn SDK echt verandert, of als een extern systeem zonder port tot in de API-respons lekt · <span class="sev minor">minor</span> / <span class="sev nit">nit</span> een header-interface in nieuwe code, in een team zonder conventie; schrijf het als <code>suggestion (non-blocking)</code> · laat gaan als het de bestaande conventie is, of een van de gevallen hierboven.</p></div>
+</section>
+
+<!-- 5. Reviewcomment -->
+<section id="comment">
+  <h2>Zo schrijf je het op</h2>
+  <div class="compare">
+    <div class="bad"><h4>Zwak</h4><p>Waarom een interface als er maar één implementatie is? YAGNI. Graag weghalen.</p><p style="color:var(--muted);font-size:14px">Een principe zonder gevolg. De auteur kan terugroepen "maar dat is clean architecture", en dan heb je een smaakdiscussie. Het voorstel kan bovendien leiden tot de <code>final</code>-bug.</p></div>
+    <div class="good"><h4>Sterk</h4><p><span class="sev minor">suggestion (non-blocking)</span> <code>InvoiceService</code> heeft één implementatie in hetzelfde pakket en één aanroeper, dus hij schermt niets af. De twee redenen uit de beschrijving gelden in Boot 4 niet meer: <code>@Transactional</code> werkt via een CGLIB-subclass op de class zelf, en <code>@MockitoBean</code> mockt de class direct. Nu kost hij bij elke signatuurwijziging twee bestanden.</p><p><b>Voorstel:</b> interface weg, <code>InvoiceServiceImpl</code> → <code>InvoiceService</code>. Let op: <b>niet</b> <code>final</code> maken, anders kan Spring hem niet proxyen.</p><p>Of is dit bedoeld als API voor een andere module? Dan liever de interface daar neerzetten en de implementatie intern maken.</p></div>
+  </div>
+  <p>Wat de sterke versie doet: hij weerlegt de genoemde redenen in plaats van een principe te roepen, noemt de prijs, waarschuwt voor de valkuil die het voorstel zelf introduceert, en laat ruimte voor context die jij niet hebt.</p>
+</section>
+
+<!-- 6. Oefen-diff -->
+<section id="oefening">
+  <h2>Oefening: review deze PR</h2>
+  <p>Neem 10 minuten. Noteer per bevinding de regel, de zwaarte en een comment. Niet alles wat verdacht lijkt is fout. Context: <code>DhlRestClient</code> is een HTTP-client naar de tarieven-API van DHL (100–1500 ms); <code>DhlRateResponse</code> is het model dat het team uit DHL's OpenAPI-spec genereert. <code>CheckoutController</code> roept <code>start</code> aan.</p>
+  <div class="diff">
+    <div class="diff-head">PR #574 · Verzendkosten berekenen bij het starten van checkout</div>
+<pre><span class="a"><span class="ln">1</span>// shipping/ShippingCostCalculator.java (nieuw)</span><span class="a"><span class="ln">2</span>package com.shop.shipping;</span><span class="a"><span class="ln">3</span></span><span class="a"><span class="ln">4</span>import com.shop.shipping.dhl.model.DhlRateResponse;</span><span class="a"><span class="ln">5</span></span><span class="a"><span class="ln">6</span>/** Abstractie zodat we later andere vervoerders kunnen toevoegen. */</span><span class="a"><span class="ln">7</span>public interface ShippingCostCalculator {</span><span class="a"><span class="ln">8</span>    DhlRateResponse calculate(Address destination, Weight weight);</span><span class="a"><span class="ln">9</span>}</span><span class="a"><span class="ln">10</span></span><span class="a"><span class="ln">11</span>// shipping/ShippingCostCalculatorImpl.java (nieuw)</span><span class="a"><span class="ln">12</span>package com.shop.shipping;</span><span class="a"><span class="ln">13</span></span><span class="a"><span class="ln">14</span>@Component</span><span class="a"><span class="ln">15</span>public class ShippingCostCalculatorImpl implements ShippingCostCalculator {</span><span class="a"><span class="ln">16</span></span><span class="a"><span class="ln">17</span>    private final DhlRestClient dhl;</span><span class="a"><span class="ln">18</span></span><span class="a"><span class="ln">19</span>    public ShippingCostCalculatorImpl(DhlRestClient dhl) {</span><span class="a"><span class="ln">20</span>        this.dhl = dhl;</span><span class="a"><span class="ln">21</span>    }</span><span class="a"><span class="ln">22</span></span><span class="a"><span class="ln">23</span>    @Override</span><span class="a"><span class="ln">24</span>    public DhlRateResponse calculate(Address destination, Weight weight) {</span><span class="a"><span class="ln">25</span>        return dhl.rates(destination.postalCode(), destination.country(), weight.grams());</span><span class="a"><span class="ln">26</span>    }</span><span class="a"><span class="ln">27</span>}</span><span><span class="ln">28</span></span><span><span class="ln">29</span>// checkout/CheckoutService.java</span><span><span class="ln">30</span>package com.shop.checkout;</span><span><span class="ln">31</span></span><span><span class="ln">32</span>@Service</span><span><span class="ln">33</span>public class CheckoutService {</span><span><span class="ln">34</span></span><span><span class="ln">35</span>    private final CartRepository carts;</span><span><span class="ln">36</span>    private final CheckoutRepository checkouts;</span><span class="a"><span class="ln">37</span>    private final ShippingCostCalculator shipping;</span><span class="a"><span class="ln">38</span>    private final Clock clock;</span><span><span class="ln">39</span></span><span class="a"><span class="ln">40</span>    public CheckoutService(CartRepository carts, CheckoutRepository checkouts,</span><span class="a"><span class="ln">41</span>                           ShippingCostCalculator shipping, Clock clock) {</span><span><span class="ln">42</span>        this.carts = carts;</span><span><span class="ln">43</span>        this.checkouts = checkouts;</span><span class="a"><span class="ln">44</span>        this.shipping = shipping;</span><span class="a"><span class="ln">45</span>        this.clock = clock;</span><span><span class="ln">46</span>    }</span><span><span class="ln">47</span></span><span><span class="ln">48</span>    @Transactional</span><span class="a"><span class="ln">49</span>    public final Checkout start(CartId cartId, Address destination) {</span><span><span class="ln">50</span>        var cart = carts.findById(cartId).orElseThrow(() -&gt; new CartNotFoundException(cartId));</span><span class="a"><span class="ln">51</span>        var shippingCost = shippingCostFor(destination, cart.totalWeight());</span><span class="a"><span class="ln">52</span>        var checkout = Checkout.open(cart, destination, shippingCost, Instant.now(clock));</span><span><span class="ln">53</span>        return checkouts.save(checkout);</span><span><span class="ln">54</span>    }</span><span class="a"><span class="ln">55</span></span><span class="a"><span class="ln">56</span>    private Money shippingCostFor(Address destination, Weight weight) {</span><span class="a"><span class="ln">57</span>        try {</span><span class="a"><span class="ln">58</span>            var rate = shipping.calculate(destination, weight);</span><span class="a"><span class="ln">59</span>            return Money.of(rate.getTotalPrice().getAmount(), rate.getTotalPrice().getCurrency());</span><span class="a"><span class="ln">60</span>        } catch (Exception e) {</span><span class="a"><span class="ln">61</span>            return Money.zero(Currency.getInstance("EUR"));</span><span class="a"><span class="ln">62</span>        }</span><span class="a"><span class="ln">63</span>    }</span><span><span class="ln">64</span>}</span><span><span class="ln">65</span></span><span class="a"><span class="ln">66</span>// config/TimeConfig.java (nieuw)</span><span class="a"><span class="ln">67</span>@Configuration</span><span class="a"><span class="ln">68</span>class TimeConfig {</span><span class="a"><span class="ln">69</span>    @Bean</span><span class="a"><span class="ln">70</span>    Clock clock() {</span><span class="a"><span class="ln">71</span>        return Clock.systemUTC();</span><span class="a"><span class="ln">72</span>    }</span><span class="a"><span class="ln">73</span>}</span></pre>
+  </div>
+  <details class="answer">
+    <summary>Antwoordsleutel tonen</summary>
+    <div>
+      <p><b>Regel 49</b> <span class="sev blocker">blocker</span> <code>final</code> op een <code>@Transactional</code>-methode (deze module en <a href="transacties-en-proxies.html">module 1</a>). CGLIB kan <code>start</code> niet overschrijven; de context start wel, met alleen een <code>WARN</code> in de log. De controller roept <code>start</code> aan op de proxy-instantie, waar <code>carts</code> <code>null</code> is: NPE op regel 50 bij elke checkout, en nooit een transactie. Comment: <i>"issue (blocking): <code>final</code> weghalen; Spring proxyt deze bean via een subclass en kan een final methode niet onderscheppen. Een <code>@SpringBootTest</code> die <code>start</code> aanroept had dit gevangen."</i></p>
+      <p><b>Regels 48 + 51/58</b> <span class="sev major">major</span> <i>Uit module 1.</i> Zodra <code>final</code> weg is, draait de HTTP-call naar DHL binnen een databasetransactie. De JDBC-connectie blijft vast zolang DHL antwoordt; bij een trage DHL loopt de connection pool leeg en lopen ook ongerelateerde endpoints vast. Voorstel: verzendkosten berekenen vóór de transactie (in de aanroeper, of een methode zonder <code>@Transactional</code> die daarna een transactionele bean aanroept), en alleen het opslaan transactioneel maken. Zet ook een timeout op de <code>DhlRestClient</code>.</p>
+      <p><b>Regels 60–61</b> <span class="sev major">major</span> <i>Uit de basis (foutpad).</i> Elke exception wordt gratis verzending. Bij een DHL-storing, een time-out of een bug in de mapping op regel 59 verzendt de shop stil gratis, zonder log of metric. Voorstel: alleen de verwachte clientfout vangen en expliciet kiezen: checkout laten falen, of een vast fallbacktarief, met logging en een metric. Dat is een productbeslissing; vraag het.</p>
+      <p><b>Regels 4–8 (met 15 en 59)</b> <span class="sev minor">minor</span> <i>Deze module.</i> De interface claimt een grens ("andere vervoerders"), maar de signatuur geeft <code>DhlRateResponse</code> terug, staat naast zijn implementatie, en <code>CheckoutService</code> leest op regel 59 DHL-velden uit. Een tweede vervoerder betekent tóch de interface en alle aanroepers wijzigen: hij beschermt niets. Kies: óf een echte port in <code>checkout</code>, in domeintaal (<code>Money quote(Address, Weight)</code>, DHL-mapping in de adapter), óf de interface weglaten. Niet het aantal implementaties is het probleem, maar de lekkende signatuur. Staat multi-carrier echt op de roadmap, dan eerder major.</p>
+      <p><b>Regels 38, 52, 66–73</b> <span class="sev ok">geen probleem</span> De afleider. <code>Clock</code> als bean met één productie-implementatie is een test-seam: tests geven <code>Clock.fixed(…)</code> mee en kunnen "checkout verloopt na 30 minuten" deterministisch testen. Een comment "één implementatie, waarom een abstractie?" zou hier precies de verkeerde zijn. Package-private <code>@Configuration</code> is ook prima.</p>
+      <p><b>Regel 14</b> <span class="sev ok">geen probleem</span> <code>@Component</code> in plaats van <code>@Service</code> maakt functioneel niets uit. Hooguit een nit als het team daar een conventie voor heeft.</p>
+    </div>
+  </details>
+</section>
+
+<!-- 7. Controlevragen -->
+<section id="vragen">
+  <h2>Controlevragen</h2>
+  <p class="quiz-intro">Beantwoord elke vraag eerst zelf, in één of twee zinnen, voordat je het antwoord opent. Het label laat zien bij welk leerdoel de vraag hoort; lukt een vraag niet, lees dan dat deel van de module nog eens.</p>
+  <ol class="quiz">
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 1</span><span class="goal-chip">Doel 1 · herkennen</span></div>
+      <p class="situ">Een interface met één implementatie in hetzelfde pakket. Zes andere modules gebruiken hem.</p>
+<pre class="snip">package com.shop.notification;
+
+public interface NotificationSender {
+    void send(CustomerId to, Notification message);
+}
+
+class EmailNotificationSender implements NotificationSender { … }</pre>
+      <p class="ask">Ceremonie of grens, en wat check je om dat te beslissen?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Hier een grens: de API van de notification-module. Zie je andere signalen, dan kan het alsnog ceremonie zijn.</p>
+        <p class="a-lbl">Wat je checkt</p>
+        <ul>
+          <li><b>Eigenaar en zichtbaarheid:</b> de implementatie is package-private, dus de zes modules kúnnen alleen via de interface. Is hij <code>public</code> en injecteert iemand hem direct, dan schermt de interface niets af.</li>
+          <li><b>Signatuur:</b> alleen eigen typen (<code>CustomerId</code>, <code>Notification</code>), geen <code>MimeMessage</code> of SMTP-exceptions.</li>
+          <li><b>Pakket:</b> dat interface en implementatie in hetzelfde pakket staan is hier geen bezwaar: het pakket ís de module, en de gebruikers zitten erbuiten.</li>
+        </ul>
+        <p class="a-lbl">Let op</p>
+        <ul><li>Vergelijk met <code>InvoiceService</code> uit het voorbeeld: daar zat de enige gebruiker in hetzelfde pakket, dus er was niets om af te schermen.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 2</span><span class="goal-chip">Doel 2 · uitleggen</span></div>
+      <p class="situ"><code>payment/RefundService</code> injecteert direct de SDK-client van de betaalprovider en geeft het SDK-responsobject terug aan de controller. Op je voorstel voor een port antwoordt de auteur: "YAGNI, we zitten contractueel vijf jaar vast aan deze provider."</p>
+      <p class="ask">Klopt die redenering?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Nee. De port is er niet om te kunnen wisselen, maar om de SDK aan de rand te houden; dat probleem bestaat vandaag al.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>SDK-typen lekken nu via domein en controller tot in de API-respons. Een SDK-upgrade met gewijzigde modellen raakt controller, service en tests.</li>
+          <li>SDK-exceptions bepalen je foutafhandeling en (via het exceptiontype) je rollbackgedrag.</li>
+          <li>YAGNI gaat over speculatieve behoeften. "SDK-wijzigingen blijven in één klasse" is geen speculatie.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>issue:</b> de SDK-respons komt tot in onze API. Bij elke SDK-upgrade wijzigen controller, service en tests mee. Voorstel: een <code>PaymentGateway</code>-port in <code>payment</code> met onze eigen typen, implementatie in <code>payment.adyen</code>. Eén implementatie, en dat is prima: het gaat om waar de SDK mag komen, niet om wisselen.</p>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 3</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">Een team heeft bewust JDK-proxies aangezet. <code>InvoiceServiceImpl implements InvoiceService</code> heeft een <code>@Transactional</code>-methode. Een nieuwe klasse injecteert de concrete class:</p>
+<pre class="snip"># application.properties
+spring.aop.proxy-target-class=false
+
+public ReminderJob(InvoiceServiceImpl invoices) { … }</pre>
+      <p class="ask">Wat gebeurt er bij het opstarten, en wat als je in dit team de interface weghaalt?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Met de interface start de context niet; zonder interface start hij wel.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>Met de interface krijgt de bean een JDK dynamic proxy die alleen <code>InvoiceService</code> implementeert, geen <code>InvoiceServiceImpl</code> is. Injectie faalt: <code>BeanNotOfRequiredTypeException</code>, "expected to be of type InvoiceServiceImpl but was actually of type jdk.proxy2.$Proxy…".</li>
+          <li>Zonder interfaces valt Spring automatisch terug op een CGLIB-subclass, en dan werkt het.</li>
+        </ul>
+        <p class="a-lbl">Les</p>
+        <ul><li>Kijk naar de proxyconfiguratie voordat je over interfaces discussieert. In dit team zijn de interfaces functioneel, en is de fix: injecteer de interface.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 4</span><span class="goal-chip">Doel 3 · voorspellen</span></div>
+      <p class="situ">Na je comment haalt de auteur de interface weg en maakt alleen de methode <code>final</code>. Beide tests zijn groen:</p>
+      <div class="snip-pair">
+        <div><p class="snip-label">A · controllertest</p>
+<pre class="snip">@WebMvcTest(InvoiceController.class)
+class InvoiceControllerTest {
+    @MockitoBean InvoiceService invoices;
+    …
+}</pre></div>
+        <div><p class="snip-label">B · unit-test</p>
+<pre class="snip">var service = new InvoiceService(
+        ordersMock, invoicesMock, clock);
+assertThat(service.issue(id))…</pre></div>
+      </div>
+      <p class="ask">Waarom vangen deze tests de fout niet, en welke test wel?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Beide omzeilen de Spring-proxy; alleen een test die de echte bean uit de context aanroept, faalt.</p>
+        <p class="a-lbl">Waarom</p>
+        <ul>
+          <li>A gebruikt een mock: de echte <code>issue</code> draait nooit.</li>
+          <li>B maakt het object met <code>new</code>: de velden zijn gevuld en er is geen proxy.</li>
+          <li>De fout zit alleen in de combinatie echte bean + CGLIB-proxy + <code>final</code> methode: daar draait de aanroep op de proxy-instantie met <code>null</code>-velden.</li>
+        </ul>
+        <p class="a-lbl">Welke test wel</p>
+        <ul><li>Een <code>@SpringBootTest</code> (of een slice die de service importeert) die de geïnjecteerde <code>InvoiceService</code> aanroept: NPE, direct. En de <code>WARN</code> bij het opstarten was al een signaal.</li></ul>
+      </div></details>
+    </li>
+
+    <li class="qcard">
+      <div class="qhead"><span class="qnum">Vraag 5</span><span class="goal-chip">Doel 4 · zwaarte en comment</span></div>
+      <p class="situ">De codebase heeft ruim 150 <code>XService</code>/<code>XServiceImpl</code>-paren. Een junior opent een PR met nog twee, netjes volgens dat patroon, zonder <code>final</code> en zonder lekkende typen.</p>
+      <p class="ask">Welke zwaarte geef je, en wat schrijf je?</p>
+      <details class="answer"><summary>Antwoord tonen</summary><div>
+        <p class="a-short">Laat gaan in de PR; breng het daarbuiten in bij het team.</p>
+        <p class="a-lbl">Waarom deze zwaarte</p>
+        <ul>
+          <li>De junior volgt de conventie. Eén afwijkende service maakt de codebase minder voorspelbaar en zet de discussie op de verkeerde plek.</li>
+          <li>Er is geen gevolg voor correctheid; de kosten zijn ceremonie, verspreid over 150 plekken. Dat is een teambesluit (ADR of tech-overleg), geen PR-bevinding.</li>
+        </ul>
+        <p class="a-lbl">In de review</p>
+        <p class="review-note"><b>thought (non-blocking):</b> prima volgens onze huidige conventie. Ik ga voorstellen om voor nieuwe services zonder modulegrens de interface weg te laten (CGLIB-proxies en Mockito maken hem niet meer nodig). Niets aan doen in deze PR.</p>
+      </div></details>
+    </li>
+
+  </ol>
+</section>
+
+<section id="verder">
+  <h2>Verder lezen</h2>
+  <ul>
+    <li>Martin Fowler, bliki: <a href="https://martinfowler.com/bliki/InterfaceImplementationPair.html">InterfaceImplementationPair</a>. Kort, en precies dit onderwerp: waarom het in applicatiecode anders ligt dan in een gepubliceerde library, en waarom een interface de behoefte van de gebruiker moet volgen.</li>
+    <li>Spring Framework Reference, Core › AOP › <a href="https://docs.spring.io/spring-framework/reference/core/aop/proxying.html">Proxying Mechanisms</a>: JDK- vs CGLIB-proxies, waarom <code>final</code> classes en methodes niet geproxied kunnen worden, en "Forcing Specific AOP Proxy Types".</li>
+    <li>Spring Modulith Reference, <a href="https://docs.spring.io/spring-modulith/reference/fundamentals.html">Fundamentals</a>, sectie "Advanced Application Modules": basispakket als API, subpakketten intern.</li>
+    <li>Joshua Bloch, <b>Effective Java</b> (3e druk), item 64 "Refer to objects by their interfaces" (let op de uitzondering: geen geschikte interface, dan de class) en item 19 "Design and document for inheritance or else prohibit it". Lees 19 samen met deze module: "prohibit" via <code>final</code> botst met Spring-proxies.</li>
+  </ul>
+</section>
+
+<footer><a href="../index.html">← Terug naar het leerplan</a></footer>
+</main>
+
+<script>
+// Voortgang per module in localStorage; faalt stil in privévensters
+(function () {
+  var slug = document.querySelector('main').dataset.module;
+  var key = 'review-leerplan:' + slug;
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('[data-goal]'));
+  var out = document.querySelector('#doelen .progress');
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  function render() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    out.textContent = done + ' van ' + boxes.length + ' doelen behaald';
+  }
+  boxes.forEach(function (b) {
+    b.checked = !!state[b.dataset.goal];
+    b.addEventListener('change', function () {
+      state[b.dataset.goal] = b.checked;
+      try { localStorage.setItem(key, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+})();
+</script>
+</body>
+</html>
